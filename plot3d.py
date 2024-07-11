@@ -1,13 +1,16 @@
 import os, os.path as osp, glob, uuid
 from textwrap import dedent
+import argparse
 
 import numpy as np
 import torch
 import matplotlib, matplotlib.pyplot as plt
 matplotlib.rcParams.update({'font.size': 22})
+import pickle as pkl
 
 from cmspepr_hgcal_core.gravnet_model import GravnetModelWithNoiseFilter
 from cmspepr_hgcal_core.datasets import taus2021_npz_to_torch_data
+from cmspepr_hgcal_core.datasets import singlePhoton_npz_to_torch_data
 from cmspepr_hgcal_core.matching import match
 
 # Clustering parameters; Values used for 2021 results were t_beta=.2, t_d=.5
@@ -170,18 +173,72 @@ def side_by_side_html(
         """)
     return html
 
+def pickle_model_outputs(model,fileName,tag):
 
-def make_plots(model, npz_file):
-    data = taus2021_npz_to_torch_data(npz_file)
+    print('Reading file:',fileName)
+
+    data = singlePhoton_npz_to_torch_data(fileName)
     data.batch = torch.ones(data.x.size(0), dtype=torch.long)
-    print(data)
 
     x = data.x.numpy()
     energy = x[:,0]
     y_true = data.y.numpy()
-    
+
+    print('Evaluating...')
+
     with torch.no_grad():
         score_noise_filter, pass_noise_filter, out_gravnet = model(data)
+
+    print('Done.')
+
+    print('Pickling model outputs...')
+
+    outputPath = 'output/{}'.format(tag)
+    if not os.path.exists(outputPath): os.makedirs(outputPath)
+
+    with open('{}/{}.pkl'.format(outputPath,fileName.replace('.npz','').split('/')[-1]),'wb') as f:
+      pkl.dump(data,f)
+      pkl.dump(score_noise_filter,f)
+      pkl.dump(pass_noise_filter,f)
+      pkl.dump(out_gravnet,f)
+
+    print('Done.')
+
+    return
+
+def make_plots(model,npz_file,iEvent,isPickle,tag):
+
+    if not isPickle:
+
+      data = singlePhoton_npz_to_torch_data(npz_file)
+      data.batch = torch.ones(data.x.size(0), dtype=torch.long)
+
+      x = data.x.numpy()
+      energy = x[:,0]
+      y_true = data.y.numpy()
+
+      print('Evaluating...')
+ 
+      with torch.no_grad():
+          score_noise_filter, pass_noise_filter, out_gravnet = model(data)
+
+      print('Done.')
+
+    else:
+
+      print('Loading event {} model outputs from {}...'.format(iEvent,npz_file))
+
+      with open(npz_file,'rb') as f:
+        data = pkl.load(f)
+        score_noise_filter = pkl.load(f)
+        pass_noise_filter = pkl.load(f)
+        out_gravnet = pkl.load(f)
+
+      print('Done.')
+
+      x = data.x.numpy()
+      energy = x[:,0]
+      y_true = data.y.numpy()
 
     n_pass = pass_noise_filter.sum()
     n_total = len(pass_noise_filter)
@@ -192,9 +249,14 @@ def make_plots(model, npz_file):
     fig = plt.figure(figsize=(8,8))
     ax = fig.gca()
     bins = np.linspace(0., 1., 100)
-    hist, _, _ = ax.hist(torch.exp(score_noise_filter[:, 1]), bins=bins, label='Noise filter score')
-    ax.plot(2*[model.signal_threshold], [0., max(hist)], label='Threshold')
+    histBkg, _, _ = ax.hist(torch.exp(score_noise_filter[[not bool(x) for x in y_true], 1]), bins=bins, label='Background', color='blue')
+    histSig, _, _ = ax.hist(torch.exp(score_noise_filter[[bool(x) for x in y_true], 1]), bins=bins, label='Signal', color='red')
+    ax.plot(2*[model.signal_threshold], [0., max(histBkg+histSig)], label='Threshold',color='black',linestyle='dashed')
     ax.legend()
+    plt.xlabel('Noise filter score')
+    plt.ylabel('No. of hits')
+    ax.set_yscale('log')
+    ax.set_ylim(ymin=1)
     plt.savefig('tmp.png', bbox_inches='tight')
     # os.system('imgcat tmp.png') # Display image in terminal; Only if you use iTerm2 and have imgcat on your path
 
@@ -250,8 +312,11 @@ def make_plots(model, npz_file):
         from sklearn.decomposition import PCA
         cluster_space_coords = PCA(3).fit_transform(cluster_space_coords)
 
+    outputPath = 'htmlOutput/{}'.format(tag)
+    if not os.path.exists(outputPath): os.makedirs(outputPath)
+
     # Compile a .html file with the plots in it
-    with open('myplots.html', 'w') as f:
+    with open('{}/{}.html'.format(outputPath,npz_file.replace('.pkl','').split('/')[-1]), 'w') as f:
         f.write(dedent(f"""\
             <p>Endcap: {data.endcap}</p>
             <div style="display:flex">
@@ -291,19 +356,40 @@ def make_plots(model, npz_file):
 
 
 def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pickle',action='store_true',help='Pickle mode')
+    parser.add_argument('--plots',action='store_true',help='Plot mode')
+    parser.add_argument('--input',type=str,required=True,help='Path to input file or directory')
+    parser.add_argument('--tag',type=str,required=True,help='Tag for output directory (may include subdirectories with \"/\" if desired)')
+    args = parser.parse_args()
+
     # Load weights into model
     ckpt = 'ckpt_train_taus_integrated_noise_Oct20_212115_best_397.pth.tar'
     model = GravnetModelWithNoiseFilter(
         input_dim = 9,
         output_dim = 6,
         k=50,
-        signal_threshold=.05
+        signal_threshold=0.05
         )
     model.load_state_dict(torch.load(ckpt, map_location=torch.device('cpu'))['model'])
     model.eval()
 
-    # One file example now
-    npz_files = glob.glob('events/*.npz')
-    make_plots(model, npz_files[0])
+    if args.plots:
+      # One file example now
+      #npz_files = glob.glob('events/*.npz')
+      #for i in range(0,1):
+      #  make_plots(model, npz_files[i])
+      pklFiles = sorted(glob.glob(args.input if 'pkl' in args.input else '{}/*.pkl'.format(args.input)))
+      for i in range(len(pklFiles)):
+        make_plots(model,pklFiles[i],i,isPickle=True,tag=args.tag)
+
+    if args.pickle:
+      #path = 'singlePhoton24-04-01/nominal'
+      npz_files = glob.glob(args.input if 'npz' in args.input else '{}/*.npz'.format(args.input))
+      for i in range(len(npz_files)):
+        #fileName = 'step3_Gamma_EnEnergy_nNEVENT_partNPART_00{}_pos.npz'.format(i)
+        fileName = npz_files[i]
+        pickle_model_outputs(model,fileName,args.tag)
 
 main()
