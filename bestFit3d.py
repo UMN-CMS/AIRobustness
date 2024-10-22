@@ -3,41 +3,40 @@ from sklearn.decomposition import PCA
 import plotly.graph_objects as go
 from skspatial.objects import Points, Line
 
-# # Clustering algorithm from plots3D.
-# def get_clustering(beta, X, threshold_beta=0.2, threshold_dist=0.5):
-#     n_points = beta.shape[0]
-#     select_condpoints = beta > threshold_beta
-#     indices_condpoints = np.nonzero(select_condpoints)[0]
+# Clustering algorithm from plots3D.
+def get_clustering(beta, X, threshold_beta=0.2, threshold_dist=0.5):
+    n_points = beta.shape[0]
+    select_condpoints = beta > threshold_beta
+    indices_condpoints = np.nonzero(select_condpoints)[0]
+    indices_condpoints = indices_condpoints[np.argsort(-beta[select_condpoints])]
+    unassigned = np.arange(n_points)
+    clustering = -1 * np.ones(n_points, dtype=np.int32)
+    
+    for index_condpoint in indices_condpoints:
+        d = np.linalg.norm(X[unassigned] - X[index_condpoint], axis=-1)
+        assigned_to_this_condpoint = unassigned[d < threshold_dist]
+        clustering[assigned_to_this_condpoint] = index_condpoint
+        unassigned = unassigned[~(d < threshold_dist)]
+    
+    return clustering
 
-#     indices_condpoints = indices_condpoints[np.argsort(-beta[select_condpoints])]
-#     unassigned = np.arange(n_points)
-#     clustering = -1 * np.ones(n_points, dtype=np.int32)
+# Parsing network output.
+def process_gravnet(score_noise_filter, pass_noise_filter, out_gravnet):
+    sigmoid = lambda x : (1+np.exp(-x)) ** (-1)
+    beta = np.array(sigmoid(out_gravnet[:, 0]))
+    cluster_space_coords = out_gravnet[:, 1:].numpy()
+    pred_clusters_pnf = get_clustering(beta, cluster_space_coords, threshold_beta=0.2, threshold_dist=0.5)
+    pred_clusters = np.zeros_like(pass_noise_filter, dtype=np.int32)
+    pred_clusters[pass_noise_filter] = pred_clusters_pnf
     
-#     for index_condpoint in indices_condpoints:
-#         d = np.linalg.norm(X[unassigned] - X[index_condpoint], axis=-1)
-#         assigned_to_this_condpoint = unassigned[d < threshold_dist]
-#         clustering[assigned_to_this_condpoint] = index_condpoint
-#         unassigned = unassigned[~(d < threshold_dist)]
+    # Count hits per cluster
+    unique, counts = np.unique(pred_clusters, return_counts=True)
+    cluster_counts = dict(zip(unique, counts))
     
-#     return clustering
-
-# # Parsing network output.
-# def process_gravnet(score_noise_filter, pass_noise_filter, out_gravnet):
-#     sigmoid = lambda x : (1+np.exp(-x)) ** (-1)
-#     beta = sigmoid(out_gravnet[:, 0])
-#     cluster_space_coords = out_gravnet[:, 1:].numpy()
-#     pred_clusters_pnf = get_clustering(beta, cluster_space_coords, threshold_beta=0.2, threshold_dist=0.5)
-#     pred_clusters = np.zeros_like(pass_noise_filter, dtype=np.int32)
-#     pred_clusters[pass_noise_filter] = pred_clusters_pnf
+    # Create final_pred_hits with clusters having less than 100 hits labeled as -2
+    final_pred_hits = np.array([cluster if cluster_counts[cluster] >= 100 else -2 for cluster in pred_clusters])
     
-#     # Count hits per cluster
-#     unique, counts = np.unique(pred_clusters, return_counts=True)
-#     cluster_counts = dict(zip(unique, counts))
-    
-#     # Create final_pred_hits with clusters having less than 100 hits labeled as -2
-#     final_pred_hits = np.array([cluster if cluster_counts[cluster] >= 100 else -2 for cluster in pred_clusters])
-    
-#     return final_pred_hits
+    return final_pred_hits
 
 def pcadepreciated3(x,y,z,energy=None):
     '''
