@@ -350,6 +350,59 @@ def plot_chi2(results, sig=None):
     )
     fig.savefig("chi2.png")
 
+def plot_avg_weighted_dists(results, sig=None):
+    # If sig is none, the graph is not zoomed
+    # If defined, the plot is centered on the average and given sig stds away on either side
+    # Reccommended to use sig=3 or more, typically sig=5 if theres little outliers
+    # Extract necessary data
+    dists_true = results["avg_weighted_dist_true"]
+    dists_pred = results["avg_weighted_dist_pred"]
+
+    avg = np.mean([np.mean(dists_true),np.mean(dists_pred)]) # Plots center of both hists
+    std = np.mean([np.std(dists_true), np.std(dists_pred)])
+
+    if sig==None:
+        upper = np.max(np.concatenate((dists_true,dists_pred)))
+        lower = np.min(np.concatenate((dists_true,dists_pred)))
+        hist_1 = hist.Hist(
+            hist.axis.Regular(
+                100, lower-0.5*std, upper+0.5*std, # add a buffer to the bounds
+                name="X", label="avg_dist", underflow=False, overflow=False
+            )
+        ).fill(dists_true)
+
+        hist_2 = hist.Hist(
+            hist.axis.Regular(
+                100, lower-0.5*std, upper+0.5*std,
+                name="X", label="avg_dist", underflow=False, overflow=False
+            )
+        ).fill(dists_pred)
+    else:
+        hist_1 = hist.Hist(
+            hist.axis.Regular(
+                100, avg-sig*std, avg+sig*std,
+                name="X", label="avg_dist", underflow=False, overflow=False
+            )
+        ).fill(dists_true)
+
+        hist_2 = hist.Hist(
+            hist.axis.Regular(
+                100, avg-sig*std, avg+sig*std,
+                name="X", label="avg_dist", underflow=False, overflow=False
+            )
+        ).fill(dists_pred)
+
+    fig = plt.figure(figsize=(10, 8))
+    fig.tight_layout()
+    main_ax_artists, sublot_ax_arists = hist_1.plot_ratio(
+        hist_2,
+        rp_ylabel=r"Ratio",
+        rp_num_label=f"True average weighted distance, $\mu$ {np.mean(dists_true):.2f}, $\sigma$ {np.std(dists_true):.2f}",
+        rp_denom_label=f"Pred average weighted distance, $\mu$ {np.mean(dists_pred):.2f}, $\sigma$ {np.std(dists_pred):.2f}",
+        rp_uncert_draw_type="bar",  # line or bar
+    )
+    fig.savefig("avg_dist.png")
+
 def main():
     # Set file pattern and file limit
     # file_pattern = r'C:\Users\tsoli\OneDrive\Documents\School\1 - University of Minnesota\Year 17\Year 1 Research\picklefiles\photons\*.pkl'
@@ -372,10 +425,10 @@ def main():
     # plot_radial_shower_spread(results)
     # plot_longitudinal_shower_spread(results, layer_positions)
     # plot_coe_layers(results, layer_positions)
-    plot_radius_95(results, 4)
+    # plot_radius_95(results, 4)
     # plot_radius_68(results, 3)
     # plot_chi2(results, 4)
-
+    plot_avg_weighted_dists(results, 4)
 
 
 if __name__ == '__main__':
