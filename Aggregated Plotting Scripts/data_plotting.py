@@ -1,8 +1,11 @@
 import matplotlib.pyplot as plt
-import data_processing as dp
 import glob
+import plotly.graph_objects as go
+import hist
 from tqdm import tqdm
 import numpy as np
+
+import data_processing as dp
 
 def aggregate_data(file_pattern, layer_positions, file_limit=1000):
     """Aggregate all necessary data from the files."""
@@ -17,7 +20,17 @@ def aggregate_data(file_pattern, layer_positions, file_limit=1000):
         "longitudinal_68_pred": [],
         "longitudinal_95_pred": [],
         "longitudinal_68_true": [],
-        "longitudinal_95_true": []
+        "longitudinal_95_true": [],
+        "chi2_true": [],
+        "chi2_pred": [],
+        "abs_dists_true": [],
+        "abs_dists_pred": [],
+        "bestFit_r95_true": [], # similar to radial_95 but using 3dbestFit line
+        "bestFit_r95_pred": [],
+        "bestFit_r68_true": [],
+        "bestFit_r68_pred": [],
+        "avg_weighted_dist_true": [],
+        "avg_weighted_dist_pred": []
     }
 
     for file_path in tqdm(files):
@@ -53,6 +66,28 @@ def aggregate_data(file_pattern, layer_positions, file_limit=1000):
             results["coe_layers_true"].append(coe_layer_true)
             results["longitudinal_68_true"].append(longitudinal_68_true)
             results["longitudinal_95_true"].append(longitudinal_95_true)
+
+        #process inputs for noise
+        x_true = xpos[true_clusters==1]
+        y_true = ypos[true_clusters==1]
+        z_true = zpos[true_clusters==1]
+        energy_true = true_energies[true_clusters==1]
+        x_pred = xpos[final_pred_hits > 0]
+        y_pred = ypos[final_pred_hits > 0]
+        z_pred = zpos[final_pred_hits > 0]
+        energy_pred = true_energies[final_pred_hits > 0]
+
+        abs_dists_true = dp.calculate_absolute_distances(x_true, y_true, z_true)
+        abs_dists_pred = dp.calculate_absolute_distances(x_pred, y_pred, z_pred)
+        
+        results["chi2_true"].append(dp.calculate_chi2(abs_dists_true, energy_true))
+        results["chi2_pred"].append(dp.calculate_chi2(abs_dists_pred, energy_pred))
+        results["bestFit_r95_true"].append(dp.e_radius(abs_dists_true, energy_true, 0.95))
+        results["bestFit_r68_true"].append(dp.e_radius(abs_dists_true, energy_true, 0.68))
+        results["bestFit_r95_pred"].append(dp.e_radius(abs_dists_pred, energy_pred, 0.95))
+        results["bestFit_r68_pred"].append(dp.e_radius(abs_dists_pred, energy_pred, 0.68))
+        results["avg_weighted_dist_true"].append(sum(abs_dists_true * energy_true) / sum(energy_true))
+        results["avg_weighted_dist_pred"].append(sum(abs_dists_pred * energy_pred) / sum(energy_pred))
 
     return results
 
@@ -156,10 +191,171 @@ def plot_coe_layers(results, layer_positions):
     plt.tight_layout()
     plt.show()
 
+def plot_radius_95(results, sig=None):
+    # If sig is none, the graph is not zoomed
+    # If defined, the plot is centered on the average and given sig stds away on either side
+    # Reccommended to use sig=3 or more, typically sig=5 if theres little outliers
+    # Extract necessary data
+    r_true = results["bestFit_r95_true"]
+    r_pred = results["bestFit_r95_pred"]
+    # binning
+    avg = np.mean([np.mean(r_true), np.mean(r_pred)]) # Plots center of both hists
+    std = np.mean([np.std(r_true),np.std(r_pred)])
+
+    if sig==None:
+        upper = np.max(np.concatenate((r_true,r_pred)))
+        lower = np.min(np.concatenate((r_true,r_pred)))
+        hist_1 = hist.Hist(
+            hist.axis.Regular(
+                100, lower-0.5*std, upper+0.5*std, # add a buffer to the bounds
+                name="X", label="Radius (cm)", underflow=False, overflow=False
+            )
+        ).fill(r_true)
+
+        hist_2 = hist.Hist(
+            hist.axis.Regular(
+                100, lower-0.5*std, upper+0.5*std,
+                name="X", label="Radius (cm)", underflow=False, overflow=False
+            )
+        ).fill(r_pred)
+    else:
+        hist_1 = hist.Hist(
+            hist.axis.Regular(
+                100, avg-sig*std, avg+sig*std,
+                name="X", label="Radius (cm)", underflow=False, overflow=False
+            )
+        ).fill(r_true)
+
+        hist_2 = hist.Hist(
+            hist.axis.Regular(
+                100, avg-sig*std, avg+sig*std,
+                name="X", label="Radius (cm)", underflow=False, overflow=False
+            )
+        ).fill(r_pred)
+
+    fig = plt.figure(figsize=(10, 8))
+    fig.tight_layout()
+    main_ax_artists, sublot_ax_arists = hist_1.plot_ratio(
+        hist_2,
+        rp_ylabel=r"Ratio",
+        rp_num_label=f"True 95%, $\mu$ {np.mean(r_true):.2f}, $\sigma$ {np.std(r_true):.2f}",
+        rp_denom_label=f"Pred 95%, $\mu$ {np.mean(r_pred):.2f}, $\sigma$ {np.std(r_pred):.2f}",
+        rp_uncert_draw_type="bar",  # line or bar
+    )
+    fig.savefig("bestFitRadius95.png")
+
+def plot_radius_68(results, sig=None):
+    # If sig is none, the graph is not zoomed
+    # If defined, the plot is centered on the average and given sig stds away on either side
+    # Reccommended to use sig=3 or more, typically sig=5 if theres little outliers
+    # Extract necessary data
+    r_true = results["bestFit_r68_true"]
+    r_pred = results["bestFit_r68_pred"]
+
+    avg = np.mean([np.mean(r_true), np.mean(r_pred)]) # Plots center of both hists
+    std = np.mean([np.std(r_true),np.std(r_pred)])
+
+    if sig==None:
+        upper = np.max(np.concatenate((r_true,r_pred)))
+        lower = np.min(np.concatenate((r_true,r_pred)))
+        hist_1 = hist.Hist(
+            hist.axis.Regular(
+                100, lower-0.5*std, upper+0.5*std, # add a buffer to the bounds
+                name="X", label="Radius (cm)", underflow=False, overflow=False
+            )
+        ).fill(r_true)
+
+        hist_2 = hist.Hist(
+            hist.axis.Regular(
+                100, lower-0.5*std, upper+0.5*std,
+                name="X", label="Radius (cm)", underflow=False, overflow=False
+            )
+        ).fill(r_pred)
+    else:
+        hist_1 = hist.Hist(
+            hist.axis.Regular(
+                100, avg-sig*std, avg+sig*std,
+                name="X", label="Radius (cm)", underflow=False, overflow=False
+            )
+        ).fill(r_true)
+
+        hist_2 = hist.Hist(
+            hist.axis.Regular(
+                100, avg-sig*std, avg+sig*std,
+                name="X", label="Radius (cm)", underflow=False, overflow=False
+            )
+        ).fill(r_pred)
+
+    fig = plt.figure(figsize=(10, 8))
+    fig.tight_layout()
+    main_ax_artists, sublot_ax_arists = hist_1.plot_ratio(
+        hist_2,
+        rp_ylabel=r"Ratio",
+        rp_num_label=f"True 68%, $\mu$ {np.mean(r_true):.2f}, $\sigma$ {np.std(r_true):.2f}",
+        rp_denom_label=f"Pred 68%, $\mu$ {np.mean(r_pred):.2f}, $\sigma$ {np.std(r_pred):.2f}",
+        rp_uncert_draw_type="bar",  # line or bar
+    )
+    fig.savefig("bestFitRadius68.png")
+
+def plot_chi2(results, sig=None):
+    # If sig is none, the graph is not zoomed
+    # If defined, the plot is centered on the average and given sig stds away on either side
+    # Reccommended to use sig=3 or more, typically sig=5 if theres little outliers
+    # Extract necessary data
+    chi_true = results["chi2_true"]
+    chi_pred = results["chi2_pred"]
+
+    avg = np.mean([np.mean(chi_true),np.mean(chi_pred)]) # Plots center of both hists
+    std = np.mean([np.std(chi_true), np.std(chi_pred)])
+
+    if sig==None:
+        upper = np.max(np.concatenate((chi_true,chi_pred)))
+        lower = np.min(np.concatenate((chi_true,chi_pred)))
+        hist_1 = hist.Hist(
+            hist.axis.Regular(
+                100, lower-0.5*std, upper+0.5*std, # add a buffer to the bounds
+                name="X", label="chi2", underflow=False, overflow=False
+            )
+        ).fill(chi_true)
+
+        hist_2 = hist.Hist(
+            hist.axis.Regular(
+                100, lower-0.5*std, upper+0.5*std,
+                name="X", label="chi2", underflow=False, overflow=False
+            )
+        ).fill(chi_pred)
+    else:
+        hist_1 = hist.Hist(
+            hist.axis.Regular(
+                100, avg-sig*std, avg+sig*std,
+                name="X", label="chi2", underflow=False, overflow=False
+            )
+        ).fill(chi_true)
+
+        hist_2 = hist.Hist(
+            hist.axis.Regular(
+                100, avg-sig*std, avg+sig*std,
+                name="X", label="chi2", underflow=False, overflow=False
+            )
+        ).fill(chi_pred)
+
+    fig = plt.figure(figsize=(10, 8))
+    fig.tight_layout()
+    main_ax_artists, sublot_ax_arists = hist_1.plot_ratio(
+        hist_2,
+        rp_ylabel=r"Ratio",
+        rp_num_label=f"True chi2, $\mu$ {np.mean(chi_true):.2f}, $\sigma$ {np.std(chi_true):.2f}",
+        rp_denom_label=f"Pred chi2, $\mu$ {np.mean(chi_pred):.2f}, $\sigma$ {np.std(chi_pred):.2f}",
+        rp_uncert_draw_type="bar",  # line or bar
+    )
+    fig.savefig("chi2.png")
 
 def main():
     # Set file pattern and file limit
-    file_pattern = r'C:\Users\tsoli\OneDrive\Documents\School\1 - University of Minnesota\Year 17\Year 1 Research\picklefiles\photons\*.pkl'
+    # file_pattern = r'C:\Users\tsoli\OneDrive\Documents\School\1 - University of Minnesota\Year 17\Year 1 Research\picklefiles\photons\*.pkl'
+    #MSI paths
+    file_pattern = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/nominal/*.pkl"
+    # file_pattern = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/FTFP_BERT_EMN/*.pkl"
     file_limit = 1000
     layer_positions = np.array([
         322, 323, 325, 326, 328, 329, 331, 332, 334, 335,
@@ -173,9 +369,14 @@ def main():
     results = aggregate_data(file_pattern, layer_positions, file_limit)
 
     # Step 2: Plot different metrics
-    plot_radial_shower_spread(results)
-    plot_longitudinal_shower_spread(results, layer_positions)
-    #plot_coe_layers(results, layer_positions)
+    # plot_radial_shower_spread(results)
+    # plot_longitudinal_shower_spread(results, layer_positions)
+    # plot_coe_layers(results, layer_positions)
+    plot_radius_95(results, 4)
+    # plot_radius_68(results, 3)
+    # plot_chi2(results, 4)
+
+
 
 if __name__ == '__main__':
     main()
