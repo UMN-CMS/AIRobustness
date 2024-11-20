@@ -1,11 +1,14 @@
 import matplotlib.pyplot as plt
 import glob
-import plotly.graph_objects as go
+# import plotly.graph_objects as go
 import hist
 from tqdm import tqdm
 import numpy as np
+import pickle
+from itertools import product, combinations, combinations_with_replacement
 
 import data_processing as dp
+import plot_labels
 
 def aggregate_data(file_pattern, layer_positions, file_limit=1000):
     """Aggregate all necessary data from the files."""
@@ -82,12 +85,15 @@ def aggregate_data(file_pattern, layer_positions, file_limit=1000):
         
         results["chi2_true"].append(dp.calculate_chi2(abs_dists_true, energy_true))
         results["chi2_pred"].append(dp.calculate_chi2(abs_dists_pred, energy_pred))
+        results["abs_dists_true"].append(sum(abs_dists_true))
+        results["abs_dists_pred"].append(sum(abs_dists_pred))
         results["bestFit_r95_true"].append(dp.e_radius(abs_dists_true, energy_true, 0.95))
         results["bestFit_r68_true"].append(dp.e_radius(abs_dists_true, energy_true, 0.68))
         results["bestFit_r95_pred"].append(dp.e_radius(abs_dists_pred, energy_pred, 0.95))
         results["bestFit_r68_pred"].append(dp.e_radius(abs_dists_pred, energy_pred, 0.68))
         results["avg_weighted_dist_true"].append(sum(abs_dists_true * energy_true) / sum(energy_true))
         results["avg_weighted_dist_pred"].append(sum(abs_dists_pred * energy_pred) / sum(energy_pred))
+
 
     return results
 
@@ -191,224 +197,85 @@ def plot_coe_layers(results, layer_positions):
     plt.tight_layout()
     plt.show()
 
-def plot_radius_95(results, sig=None):
-    # If sig is none, the graph is not zoomed
+def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
+    '''
+    Generic plotting utility for making histogram ratio comparison plots.
+    hist1 and hist2 must be 1d arrays of data to be turned into histograms
+    formatText is a dict containing all graphs strings for formatting. 
+    If anything isnt present, it will default to a generic string.
+    '''
+    # 
     # If defined, the plot is centered on the average and given sig stds away on either side
     # Reccommended to use sig=3 or more, typically sig=5 if theres little outliers
+    # compare can be set to either "pred" or "true" if we want to compare either the truths or the preds for the two data sets
     # Extract necessary data
-    r_true = results["bestFit_r95_true"]
-    r_pred = results["bestFit_r95_pred"]
+
+    data1 = data[numerator[0]][f"{metric}_{numerator[1]}"]
+    data2 = data[denominator[0]][f"{metric}_{denominator[1]}"]
+
+    formatText = plot_labels.plot_labels_select(metric, numerator, denominator)
+    if sig != None:
+        formatText["sig"] = sig
+
     # binning
-    avg = np.mean([np.mean(r_true), np.mean(r_pred)]) # Plots center of both hists
-    std = np.mean([np.std(r_true),np.std(r_pred)])
+    avg = np.mean([np.mean(data1), np.mean(data2)]) # Plots center of both hists
+    std = np.mean([np.std(data1),np.std(data2)])
 
     if sig==None:
-        upper = np.max(np.concatenate((r_true,r_pred)))
-        lower = np.min(np.concatenate((r_true,r_pred)))
+        upper = np.max(np.concatenate((data1,data2)))
+        lower = np.min(np.concatenate((data1,data2)))
         hist_1 = hist.Hist(
             hist.axis.Regular(
                 100, lower-0.5*std, upper+0.5*std, # add a buffer to the bounds
-                name="X", label="Radius (cm)", underflow=False, overflow=False
+                label=formatText["x_axis"], underflow=False, overflow=False
             )
-        ).fill(r_true)
+        ).fill(data1)
 
         hist_2 = hist.Hist(
             hist.axis.Regular(
                 100, lower-0.5*std, upper+0.5*std,
-                name="X", label="Radius (cm)", underflow=False, overflow=False
+                label=formatText["x_axis"], underflow=False, overflow=False
             )
-        ).fill(r_pred)
+        ).fill(data2)
     else:
         hist_1 = hist.Hist(
             hist.axis.Regular(
                 100, avg-sig*std, avg+sig*std,
-                name="X", label="Radius (cm)", underflow=False, overflow=False
+                label=formatText["x_axis"], underflow=False, overflow=False
             )
-        ).fill(r_true)
+        ).fill(data1)
 
         hist_2 = hist.Hist(
             hist.axis.Regular(
                 100, avg-sig*std, avg+sig*std,
-                name="X", label="Radius (cm)", underflow=False, overflow=False
+                label=formatText["x_axis"], underflow=False, overflow=False
             )
-        ).fill(r_pred)
+        ).fill(data2)
 
     fig = plt.figure(figsize=(10, 8))
     fig.tight_layout()
+    plt.title(formatText["title"])
+    plt.axis("off") #When adding a title, it draws an entire figure, We only want the title
+    
     main_ax_artists, sublot_ax_arists = hist_1.plot_ratio(
         hist_2,
-        rp_ylabel=r"Ratio",
-        rp_num_label=f"True 95%, $\mu$ {np.mean(r_true):.2f}, $\sigma$ {np.std(r_true):.2f}",
-        rp_denom_label=f"Pred 95%, $\mu$ {np.mean(r_pred):.2f}, $\sigma$ {np.std(r_pred):.2f}",
+        rp_ylabel=formatText["y_axis"],
+        rp_num_label=f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}",
+        rp_denom_label=f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}",
         rp_uncert_draw_type="bar",  # line or bar
     )
-    fig.savefig("bestFitRadius95.png")
+    
+    fig.savefig(formatText["saveas"])
+    plt.close()
+    return
 
-def plot_radius_68(results, sig=None):
-    # If sig is none, the graph is not zoomed
-    # If defined, the plot is centered on the average and given sig stds away on either side
-    # Reccommended to use sig=3 or more, typically sig=5 if theres little outliers
-    # Extract necessary data
-    r_true = results["bestFit_r68_true"]
-    r_pred = results["bestFit_r68_pred"]
-
-    avg = np.mean([np.mean(r_true), np.mean(r_pred)]) # Plots center of both hists
-    std = np.mean([np.std(r_true),np.std(r_pred)])
-
-    if sig==None:
-        upper = np.max(np.concatenate((r_true,r_pred)))
-        lower = np.min(np.concatenate((r_true,r_pred)))
-        hist_1 = hist.Hist(
-            hist.axis.Regular(
-                100, lower-0.5*std, upper+0.5*std, # add a buffer to the bounds
-                name="X", label="Radius (cm)", underflow=False, overflow=False
-            )
-        ).fill(r_true)
-
-        hist_2 = hist.Hist(
-            hist.axis.Regular(
-                100, lower-0.5*std, upper+0.5*std,
-                name="X", label="Radius (cm)", underflow=False, overflow=False
-            )
-        ).fill(r_pred)
-    else:
-        hist_1 = hist.Hist(
-            hist.axis.Regular(
-                100, avg-sig*std, avg+sig*std,
-                name="X", label="Radius (cm)", underflow=False, overflow=False
-            )
-        ).fill(r_true)
-
-        hist_2 = hist.Hist(
-            hist.axis.Regular(
-                100, avg-sig*std, avg+sig*std,
-                name="X", label="Radius (cm)", underflow=False, overflow=False
-            )
-        ).fill(r_pred)
-
-    fig = plt.figure(figsize=(10, 8))
-    fig.tight_layout()
-    main_ax_artists, sublot_ax_arists = hist_1.plot_ratio(
-        hist_2,
-        rp_ylabel=r"Ratio",
-        rp_num_label=f"True 68%, $\mu$ {np.mean(r_true):.2f}, $\sigma$ {np.std(r_true):.2f}",
-        rp_denom_label=f"Pred 68%, $\mu$ {np.mean(r_pred):.2f}, $\sigma$ {np.std(r_pred):.2f}",
-        rp_uncert_draw_type="bar",  # line or bar
-    )
-    fig.savefig("bestFitRadius68.png")
-
-def plot_chi2(results, sig=None):
-    # If sig is none, the graph is not zoomed
-    # If defined, the plot is centered on the average and given sig stds away on either side
-    # Reccommended to use sig=3 or more, typically sig=5 if theres little outliers
-    # Extract necessary data
-    chi_true = results["chi2_true"]
-    chi_pred = results["chi2_pred"]
-
-    avg = np.mean([np.mean(chi_true),np.mean(chi_pred)]) # Plots center of both hists
-    std = np.mean([np.std(chi_true), np.std(chi_pred)])
-
-    if sig==None:
-        upper = np.max(np.concatenate((chi_true,chi_pred)))
-        lower = np.min(np.concatenate((chi_true,chi_pred)))
-        hist_1 = hist.Hist(
-            hist.axis.Regular(
-                100, lower-0.5*std, upper+0.5*std, # add a buffer to the bounds
-                name="X", label="chi2", underflow=False, overflow=False
-            )
-        ).fill(chi_true)
-
-        hist_2 = hist.Hist(
-            hist.axis.Regular(
-                100, lower-0.5*std, upper+0.5*std,
-                name="X", label="chi2", underflow=False, overflow=False
-            )
-        ).fill(chi_pred)
-    else:
-        hist_1 = hist.Hist(
-            hist.axis.Regular(
-                100, avg-sig*std, avg+sig*std,
-                name="X", label="chi2", underflow=False, overflow=False
-            )
-        ).fill(chi_true)
-
-        hist_2 = hist.Hist(
-            hist.axis.Regular(
-                100, avg-sig*std, avg+sig*std,
-                name="X", label="chi2", underflow=False, overflow=False
-            )
-        ).fill(chi_pred)
-
-    fig = plt.figure(figsize=(10, 8))
-    fig.tight_layout()
-    main_ax_artists, sublot_ax_arists = hist_1.plot_ratio(
-        hist_2,
-        rp_ylabel=r"Ratio",
-        rp_num_label=f"True chi2, $\mu$ {np.mean(chi_true):.2f}, $\sigma$ {np.std(chi_true):.2f}",
-        rp_denom_label=f"Pred chi2, $\mu$ {np.mean(chi_pred):.2f}, $\sigma$ {np.std(chi_pred):.2f}",
-        rp_uncert_draw_type="bar",  # line or bar
-    )
-    fig.savefig("chi2.png")
-
-def plot_avg_weighted_dists(results, sig=None):
-    # If sig is none, the graph is not zoomed
-    # If defined, the plot is centered on the average and given sig stds away on either side
-    # Reccommended to use sig=3 or more, typically sig=5 if theres little outliers
-    # Extract necessary data
-    dists_true = results["avg_weighted_dist_true"]
-    dists_pred = results["avg_weighted_dist_pred"]
-
-    avg = np.mean([np.mean(dists_true),np.mean(dists_pred)]) # Plots center of both hists
-    std = np.mean([np.std(dists_true), np.std(dists_pred)])
-
-    if sig==None:
-        upper = np.max(np.concatenate((dists_true,dists_pred)))
-        lower = np.min(np.concatenate((dists_true,dists_pred)))
-        hist_1 = hist.Hist(
-            hist.axis.Regular(
-                100, lower-0.5*std, upper+0.5*std, # add a buffer to the bounds
-                name="X", label="avg_dist", underflow=False, overflow=False
-            )
-        ).fill(dists_true)
-
-        hist_2 = hist.Hist(
-            hist.axis.Regular(
-                100, lower-0.5*std, upper+0.5*std,
-                name="X", label="avg_dist", underflow=False, overflow=False
-            )
-        ).fill(dists_pred)
-    else:
-        hist_1 = hist.Hist(
-            hist.axis.Regular(
-                100, avg-sig*std, avg+sig*std,
-                name="X", label="avg_dist", underflow=False, overflow=False
-            )
-        ).fill(dists_true)
-
-        hist_2 = hist.Hist(
-            hist.axis.Regular(
-                100, avg-sig*std, avg+sig*std,
-                name="X", label="avg_dist", underflow=False, overflow=False
-            )
-        ).fill(dists_pred)
-
-    fig = plt.figure(figsize=(10, 8))
-    fig.tight_layout()
-    main_ax_artists, sublot_ax_arists = hist_1.plot_ratio(
-        hist_2,
-        rp_ylabel=r"Ratio",
-        rp_num_label=f"True average weighted distance, $\mu$ {np.mean(dists_true):.2f}, $\sigma$ {np.std(dists_true):.2f}",
-        rp_denom_label=f"Pred average weighted distance, $\mu$ {np.mean(dists_pred):.2f}, $\sigma$ {np.std(dists_pred):.2f}",
-        rp_uncert_draw_type="bar",  # line or bar
-    )
-    fig.savefig("avg_dist.png")
 
 def main():
     # Set file pattern and file limit
     # file_pattern = r'C:\Users\tsoli\OneDrive\Documents\School\1 - University of Minnesota\Year 17\Year 1 Research\picklefiles\photons\*.pkl'
     #MSI paths
-    file_pattern = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/nominal/*.pkl"
-    # file_pattern = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/FTFP_BERT_EMN/*.pkl"
+    file_pattern_nominal = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/nominal/*.pkl"
+    file_pattern_FTFP = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/FTFP_BERT_EMN/*.pkl"
     file_limit = 1000
     layer_positions = np.array([
         322, 323, 325, 326, 328, 329, 331, 332, 334, 335,
@@ -419,17 +286,29 @@ def main():
     ])
 
     # Step 1: Aggregate data
-    results = aggregate_data(file_pattern, layer_positions, file_limit)
+    results = {}
+    results["nominal"] = aggregate_data(file_pattern_nominal, layer_positions, file_limit)
+    results["FTFP"] = aggregate_data(file_pattern_FTFP, layer_positions, file_limit)
 
-    # Step 2: Plot different metrics
-    # plot_radial_shower_spread(results)
-    # plot_longitudinal_shower_spread(results, layer_positions)
-    # plot_coe_layers(results, layer_positions)
-    # plot_radius_95(results, 4)
-    # plot_radius_68(results, 3)
-    # plot_chi2(results, 4)
-    plot_avg_weighted_dists(results, 4)
+    metrics = ["bestFit_r95", "bestFit_r68", "radial_68", \
+               "radial_95", "coe_layers", "longitudinal_68", \
+               "longitudinal_95", "chi2", "abs_dists", "avg_weighted_dist"]
+    samples = ["nominal", "FTFP"]
+    labels = ["true", "pred"]
 
+    sampleCombos = list(combinations_with_replacement(samples, 2))
+    labelCombos = list(combinations_with_replacement(labels, 2))
+    fullCombos = list(product(sampleCombos,labelCombos))
+    for metric in metrics:
+        for combo in fullCombos:
+            sampleNum,sampleDen = combo[0][0],combo[0][1]
+            labelNum,labelDen   = combo[1][0],combo[1][1]
+            # Skip when both same or when both label and sample are different
+            if (sampleNum == sampleDen and labelNum == labelDen) or (labelNum != labelDen and sampleNum != sampleDen): continue
+            print(f"Plotting {metric}: {labelNum} | {labelDen}")
+            plot_hist_ratio(results, metric, (sampleNum,labelNum), (sampleDen,labelDen))
+
+    # plot_hist_ratio(results, "bestFit_r95", ("nominal","true"), ("nominal","pred"))
 
 if __name__ == '__main__':
     main()
