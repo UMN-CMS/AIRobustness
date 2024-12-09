@@ -1,0 +1,1 @@
+montage *.png -background none -tile 2x2 -resize 1024x1024 -geometry +0+0 output.pdf

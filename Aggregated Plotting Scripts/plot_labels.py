@@ -1,3 +1,5 @@
+import numpy as np
+
 def default_format():
     formatText = {
         "title":"Hist Ratio",
@@ -22,6 +24,9 @@ def plot_labels_select(metric, numerator, denominator):
     label1 = get_label(metric, sampleNum, sampleDen, labelNum)
     label2 = get_label(metric, sampleDen, sampleNum, labelDen)
     saveas = get_saveName(metric, sampleNum, sampleDen, labelNum)
+    bins = get_bins(metric)
+    upper = get_upper(metric)
+    lower = get_lower(metric)
     sig = None
 
     formatText["title"] = title
@@ -30,7 +35,11 @@ def plot_labels_select(metric, numerator, denominator):
     formatText["label1"] = label1
     formatText["label2"] = label2
     formatText["saveas"] = saveas
+    formatText["bins"] = bins
+    formatText["upper"] = upper
+    formatText["lower"] = lower
     formatText["sig"] = sig
+
     
     return formatText
 
@@ -119,6 +128,75 @@ def get_saveName(metric, sample1, sample2, label1):
     else:
         saveas += f"_{sample1}"
     
-    saveas += ".pdf"
+    saveas += ".png"
     return saveas
 
+def get_bins(metric):
+    # in general I want some bin number between 50 and 100 but must be aligned to the integers 
+    # so the difference must be a multiple of the divisor to get it close to 100 
+    # this is kinda gross because it likely wont scale when we start getting different metrics but for now this will have to do
+    # the sigma method seems a good alternative but maybe we can scale it to account for the asymmetric spread
+    if metric == "bestFit_r95":
+        return 70
+    elif metric == "bestFit_r68":
+        return 70
+    elif metric == "coe_layers":
+        return 50
+    elif metric == "longitudinal_95":
+        return 90
+    elif metric == "longitudinal_68":
+        return 88
+    elif metric == "chi2":
+        return 90
+    elif metric == "radial_68":
+        return 90
+    elif metric == "radial_95":
+        return 90
+    elif metric == "abs_dists":
+        return 80
+    elif metric == "avg_weighted_dist":
+        return 80
+    
+def get_upper(metric):
+    if metric == "bestFit_r95":
+        return 9
+    elif metric == "bestFit_r68":
+        return 2.2
+    elif metric == "coe_layers":
+        return 50
+    elif metric == "longitudinal_95":
+        return 18
+    elif metric == "longitudinal_68":
+        return 9.5
+    elif metric == "chi2":
+        return 55
+    elif metric == "radial_68":
+        return 3.75
+    elif metric == "radial_95":
+        return 9.5
+    elif metric == "abs_dists":
+        return 2250
+    elif metric == "avg_weighted_dist":
+        return 2.75
+      
+def get_lower(metric):
+    if metric == "bestFit_r95":
+        return 3
+    elif metric == "bestFit_r68":
+        return 0.7
+    elif metric == "coe_layers":
+        return 0
+    elif metric == "longitudinal_95":
+        return 9
+    elif metric == "longitudinal_68":
+        return 4
+    elif metric == "chi2":
+        return 10
+    elif metric == "radial_68":
+        return 1.25
+    elif metric == "radial_95":
+        return 4.5
+    elif metric == "abs_dists":
+        return 1050
+    elif metric == "avg_weighted_dist":
+        return 1.25

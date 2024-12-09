@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import glob
-# import plotly.graph_objects as go
 import hist
 from tqdm import tqdm
 import numpy as np
@@ -33,13 +32,21 @@ def aggregate_data(file_pattern, layer_positions, file_limit=1000):
         "bestFit_r68_true": [],
         "bestFit_r68_pred": [],
         "avg_weighted_dist_true": [],
-        "avg_weighted_dist_pred": []
+        "avg_weighted_dist_pred": [],
+        "hist_data": {
+            'low_eta': {'EM': [], 'HAD': [], 'MIP': [], 'MIX': []},
+            'high_eta': {'EM': [], 'HAD': [], 'MIP': [], 'MIX': []}
+        }
     }
+
 
     for file_path in tqdm(files):
         data, score_noise_filter, pass_noise_filter, out_gravnet = dp.load_data(file_path)
         true_energies, true_clusters, xpos, ypos, zpos = dp.process_data(data)
         final_pred_hits = dp.process_gravnet(score_noise_filter, pass_noise_filter, out_gravnet)
+
+        dp.accumulate_histograms(results["hist_data"], data, score_noise_filter, pass_noise_filter, out_gravnet)
+
 
         # Radial Shower Spread calculations
         valid_pred_indices = np.where((final_pred_hits != -1) & (final_pred_hits != 0) & (final_pred_hits != -2))[0]
@@ -197,6 +204,28 @@ def plot_coe_layers(results, layer_positions):
     plt.tight_layout()
     plt.show()
 
+def plot_energy_resolution(results, sample):
+    hist_data = results["hist_data"]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+
+    for label in ['EM', 'HAD', 'MIP', 'MIX']:
+        low_eta_data = hist_data['low_eta'][label]
+        high_eta_data = hist_data['high_eta'][label]
+        
+        ax1.hist(low_eta_data, bins=np.linspace(0, 3, 50), alpha=0.5, label=label, histtype='step', density=True, linewidth=2)
+        ax2.hist(high_eta_data, bins=np.linspace(0, 3, 50), alpha=0.5, label=label, histtype='step', density=True, linewidth=2)
+    
+    ax1.set_title(f'{sample} |η| < 2.1')
+    ax2.set_title(f'{sample} |η| > 2.1')
+    for ax in (ax1, ax2):
+        ax.set_xlabel('E(pred) / E(true)')
+        ax.set_ylabel('Arbitrary Units')
+        ax.legend()
+
+    
+    plt.savefig(f"zenergy_resolution_{sample}.png") # I just want this is appear last in the document
+
 def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     '''
     Generic plotting utility for making histogram ratio comparison plots.
@@ -214,14 +243,14 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     data2 = data[denominator[0]][f"{metric}_{denominator[1]}"]
 
     formatText = plot_labels.plot_labels_select(metric, numerator, denominator)
-    if sig != None:
-        formatText["sig"] = sig
+
 
     # binning
     avg = np.mean([np.mean(data1), np.mean(data2)]) # Plots center of both hists
     std = np.mean([np.std(data1),np.std(data2)])
 
-    if sig==None:
+
+    if sig==0:
         upper = np.max(np.concatenate((data1,data2)))
         lower = np.min(np.concatenate((data1,data2)))
         hist_1 = hist.Hist(
@@ -234,6 +263,20 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
         hist_2 = hist.Hist(
             hist.axis.Regular(
                 100, lower-0.5*std, upper+0.5*std,
+                label=formatText["x_axis"], underflow=False, overflow=False
+            )
+        ).fill(data2)
+    elif sig==None:
+        hist_1 = hist.Hist(
+            hist.axis.Regular(
+                formatText["bins"], formatText["lower"], formatText["upper"],
+                label=formatText["x_axis"], underflow=False, overflow=False
+            )
+        ).fill(data1)
+
+        hist_2 = hist.Hist(
+            hist.axis.Regular(
+                formatText["bins"], formatText["lower"], formatText["upper"],
                 label=formatText["x_axis"], underflow=False, overflow=False
             )
         ).fill(data2)
@@ -252,6 +295,7 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
             )
         ).fill(data2)
 
+
     fig = plt.figure(figsize=(10, 8))
     fig.tight_layout()
     plt.title(formatText["title"])
@@ -260,9 +304,11 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     main_ax_artists, sublot_ax_arists = hist_1.plot_ratio(
         hist_2,
         rp_ylabel=formatText["y_axis"],
+        # rp_ybound=[0,2],
         rp_num_label=f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}",
         rp_denom_label=f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}",
         rp_uncert_draw_type="bar",  # line or bar
+        
     )
     
     fig.savefig(formatText["saveas"])
@@ -294,6 +340,7 @@ def main():
                "radial_95", "coe_layers", "longitudinal_68", \
                "longitudinal_95", "chi2", "abs_dists", "avg_weighted_dist"]
     samples = ["nominal", "FTFP"]
+    # samples = ["nominal"]
     labels = ["true", "pred"]
 
     sampleCombos = list(combinations_with_replacement(samples, 2))
@@ -309,6 +356,7 @@ def main():
             plot_hist_ratio(results, metric, (sampleNum,labelNum), (sampleDen,labelDen))
 
     # plot_hist_ratio(results, "bestFit_r95", ("nominal","true"), ("nominal","pred"))
-
+    plot_energy_resolution(results["nominal"], "nominal")
+    
 if __name__ == '__main__':
     main()
