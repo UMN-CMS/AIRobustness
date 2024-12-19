@@ -51,3 +51,23 @@ python plot3d.py
 ```
 
 This script will create a file called `myplots.html`, which can be opened in a browser.
+
+## Running slurm jobs for model outputs
+
+Modify `slurm/submit.slurm` appropriately, replacing all `XXX` values and following all instructions in the comments.
+
+To submit the job, run the following: 
+
+```
+sbatch -p msismall submit.slurm
+```
+
+To check the status, run: 
+
+```
+squeue USER
+```
+
+, where `USER` is your username. 
+
+If you completed the email field in the submit file, you will also get notifications when a job starts and finishes.  
