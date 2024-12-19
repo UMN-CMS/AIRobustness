@@ -13,8 +13,17 @@ def load_data(file_path):
         out_gravnet = pickle.load(f)
     return data, score_noise_filter, pass_noise_filter, out_gravnet
 
-def load_data_bulk(file_path):
-    return
+def load_data_bulk(sample):
+    with open(f"pickles/{sample}/{sample}_data.pkl", 'rb') as f:
+        data = pickle.load(f)
+    with open(f"pickles/{sample}/{sample}_score_noise_filter.pkl", 'rb') as f:
+        score_noise_filter = pickle.load(f)
+    with open(f"pickles/{sample}/{sample}_pass_noise_filter.pkl", 'rb') as f:
+        pass_noise_filter = pickle.load(f)
+    with open(f"pickles/{sample}/{sample}_out_gravnet.pkl", 'rb') as f:
+        out_gravent = pickle.load(f)
+    
+    return data, score_noise_filter, pass_noise_filter, out_gravent
 
 def get_clustering(beta, X, threshold_beta=0.2, threshold_dist=0.5):
     """Cluster points based on beta values and distances."""
@@ -110,6 +119,11 @@ def calculate_longitudinal_shower_spread(cluster_indices, zpos, energies, layer_
     longitudinal_95 = distances[sorted_indices][np.searchsorted(cumulative_energies, 0.95 * total_energy)]
     
     return nearest_layer_com, longitudinal_68, longitudinal_95
+
+def find_first_hit(z_vals,layer_positions):
+    firstZ = np.round(sorted(z_vals)[0])
+    firstLayer = np.argwhere(firstZ==layer_positions)[0][0]
+    return firstLayer
 
 def pca(x,y,z, energy = None):
     '''

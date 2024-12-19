@@ -71,6 +71,8 @@ def get_title(metric, sampleNum, sampleDen):
         title += "BestFit Absolute Distance"
     elif metric == "avg_weighted_dist":
         title += "BestFit Average Weighted Distance"
+    elif metric == "firstLayer":
+        title += "First Layer"
     else:
         print("Defaulting metric_title")
         title += default_format()["title"]
@@ -80,7 +82,7 @@ def get_title(metric, sampleNum, sampleDen):
 def get_x_axis(metric):
     if metric == "bestFit_r95" or metric == "bestFit_r68" or metric == "radial_68" or metric == "radial_95":
         return "Radial Distance (cm)"
-    elif metric == "coe_layers":
+    elif metric == "coe_layers" or metric == "firstLayer":
         return "Layer Index"
     elif metric == "longitudinal_68" or metric == "longitudinal_95":
         return "Longitudinal Distance (cm)"
@@ -115,6 +117,8 @@ def get_label(metric, sample, sampleCompare, label):
         formatLabel += "Abs Distance"
     elif metric == "avg_weighted_dist":
         formatLabel += "Avg Weighted Distance"
+    elif metric == "firstLayer":
+        formatLabel += "layerIndex"
     else:
         formatLabel += default_format()["label"]
 
@@ -136,67 +140,40 @@ def get_bins(metric):
     # so the difference must be a multiple of the divisor to get it close to 100 
     # this is kinda gross because it likely wont scale when we start getting different metrics but for now this will have to do
     # the sigma method seems a good alternative but maybe we can scale it to account for the asymmetric spread
-    if metric == "bestFit_r95":
-        return 70
-    elif metric == "bestFit_r68":
-        return 70
-    elif metric == "coe_layers":
-        return 50
-    elif metric == "longitudinal_95":
-        return 90
-    elif metric == "longitudinal_68":
-        return 88
-    elif metric == "chi2":
-        return 90
-    elif metric == "radial_68":
-        return 90
-    elif metric == "radial_95":
-        return 90
-    elif metric == "abs_dists":
-        return 80
-    elif metric == "avg_weighted_dist":
-        return 80
+    if metric == "bestFit_r95" : return 70
+    elif metric == "bestFit_r68" : return 70
+    elif metric == "coe_layers" : return 50
+    elif metric == "longitudinal_95" : return 90
+    elif metric == "longitudinal_68" : return 88
+    elif metric == "chi2" : return 90
+    elif metric == "radial_68" : return 90
+    elif metric == "radial_95" : return 90
+    elif metric == "abs_dists" : return 80
+    elif metric == "avg_weighted_dist" : return 80
+    elif metric == "firstLayer" : return 50
     
 def get_upper(metric):
-    if metric == "bestFit_r95":
-        return 9
-    elif metric == "bestFit_r68":
-        return 2.2
-    elif metric == "coe_layers":
-        return 50
-    elif metric == "longitudinal_95":
-        return 18
-    elif metric == "longitudinal_68":
-        return 9.5
-    elif metric == "chi2":
-        return 55
-    elif metric == "radial_68":
-        return 3.75
-    elif metric == "radial_95":
-        return 9.5
-    elif metric == "abs_dists":
-        return 2250
-    elif metric == "avg_weighted_dist":
-        return 2.75
+    if metric == "bestFit_r95" : return 9
+    elif metric == "bestFit_r68" : return 2.2
+    elif metric == "coe_layers" : return 50
+    elif metric == "longitudinal_95" : return 18
+    elif metric == "longitudinal_68" : return 9.5
+    elif metric == "chi2" : return 55
+    elif metric == "radial_68" : return 3.75
+    elif metric == "radial_95" : return 9.5
+    elif metric == "abs_dists" : return 2250
+    elif metric == "avg_weighted_dist" : return 2.75
+    elif metric == "firstLayer" : return 50
       
 def get_lower(metric):
-    if metric == "bestFit_r95":
-        return 3
-    elif metric == "bestFit_r68":
-        return 0.7
-    elif metric == "coe_layers":
-        return 0
-    elif metric == "longitudinal_95":
-        return 9
-    elif metric == "longitudinal_68":
-        return 4
-    elif metric == "chi2":
-        return 10
-    elif metric == "radial_68":
-        return 1.25
-    elif metric == "radial_95":
-        return 4.5
-    elif metric == "abs_dists":
-        return 1050
-    elif metric == "avg_weighted_dist":
-        return 1.25
+    if metric == "bestFit_r95" : return 3
+    elif metric == "bestFit_r68" : return 0.7
+    elif metric == "coe_layers" : return 0
+    elif metric == "longitudinal_95" : return 9
+    elif metric == "longitudinal_68" : return 4
+    elif metric == "chi2" : return 10
+    elif metric == "radial_68" : return 1.25
+    elif metric == "radial_95" : return 4.5
+    elif metric == "abs_dists" : return 1050
+    elif metric == "avg_weighted_dist" : return 1.25
+    elif metric == "firstLayer" : return 0
