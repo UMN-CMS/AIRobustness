@@ -1,6 +1,21 @@
 # Minimal example for HGCAL evaluation
 
-## Setup (for CPU)
+## Setup (every time)
+
+```bash
+singularity run --bind $PWD:/wd pytorch_2.0.0-cuda11.7-cudnn8-devel.sif
+
+```
+
+Once inside the container:
+
+```bash
+export PYTHONPATH="/opt/conda/lib/python3.10/site-packages"
+cd /wd
+source env/bin/activate
+```
+
+## Initial setup (for CPU)
 
 ```bash
 # Download the model weights
@@ -43,7 +58,6 @@ pip install -e cmspepr_hgcal_core/
 
 Note that pytorch is preinstalled in the container.
 
-
 ## Usage
 
 ```bash
@@ -65,7 +79,7 @@ sbatch -p msismall submit.slurm
 To check the status, run: 
 
 ```
-squeue USER
+squeue -u USER
 ```
 
 , where `USER` is your username. 
