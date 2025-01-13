@@ -360,9 +360,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pickle',action='store_true',help='Pickle mode')
     parser.add_argument('--plots',action='store_true',help='Plot mode')
-    parser.add_argument('--input',type=str,required=True,help='Path to input file or directory')
+    parser.add_argument('--input',nargs='+',required=True,help='Path to input file or directory')
     parser.add_argument('--tag',type=str,required=True,help='Tag for output directory (may include subdirectories with \"/\" if desired)')
     args = parser.parse_args()
+
+    if sum(['*' in x for x in args.input]) > 1: print('WARNING: Multiple wildcards (*) not allowed')
 
     # Load weights into model
     ckpt = 'ckpt_train_taus_integrated_noise_Oct20_212115_best_397.pth.tar'
@@ -376,19 +378,17 @@ def main():
     model.eval()
 
     if args.plots:
-      # One file example now
-      #npz_files = glob.glob('events/*.npz')
-      #for i in range(0,1):
-      #  make_plots(model, npz_files[i])
-      pklFiles = sorted(glob.glob(args.input if 'pkl' in args.input else '{}/*.pkl'.format(args.input)))
+      if len(args.input) != 1: pklFiles = args.input
+      else: pklFiles = sorted(glob.glob(args.input if any(x in args.input for x in ['.pkl','*']) else '{}/*.pkl'.format(args.input)))
       for i in range(len(pklFiles)):
         make_plots(model,pklFiles[i],i,isPickle=True,tag=args.tag)
 
     if args.pickle:
-      #path = 'singlePhoton24-04-01/nominal'
-      npz_files = glob.glob(args.input if 'npz' in args.input else '{}/*.npz'.format(args.input))
+      if len(args.input) != 1: npz_files = args.input
+      else:
+        args.input = args.input[0]
+        npz_files = sorted(glob.glob(args.input if any(x in args.input for x in ['.npz','*']) else '{}/*.npz'.format(args.input)))
       for i in range(len(npz_files)):
-        #fileName = 'step3_Gamma_EnEnergy_nNEVENT_partNPART_00{}_pos.npz'.format(i)
         fileName = npz_files[i]
         pickle_model_outputs(model,fileName,args.tag)
 

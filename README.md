@@ -68,20 +68,42 @@ This script will create a file called `myplots.html`, which can be opened in a b
 
 ## Running slurm jobs for model outputs
 
-Modify `slurm/submit.slurm` appropriately, replacing all `XXX` values and following all instructions in the comments.
-
-To submit the job, run the following: 
+Make a new directory for a new set of jobs in the directory with your container (.sif) file, and copy over the content of the `slurm` directory. For example, 
 
 ```
-sbatch -p msismall submit.slurm
+cd hgcalmlSingularity
+mkdir slurmSinglePhotonExample25-01-13
+cd slurmSinglePhotonExample25-01-13
+cp -r ../hgcal_minimal_eval_example/slurm/* . 
 ```
 
-To check the status, run: 
+Running `./submitSlurm.py --help` will print out a help menu that explains all options:
+
+```
+% ./submitSlurm.py --help
+usage: submitSlurm.py [-h] -n NEVENTS -i INPUT [-t TAG]
+
+Slurm submit script
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -n NEVENTS, --nEvents NEVENTS
+                        Number of events per job
+  -i INPUT, --input INPUT
+                        Path to directory with npz files
+  -t TAG, --tag TAG     Tag for output
+```
+
+As an example, the following will take all .npz files in the directory `../hgcal_minimal_eval_example/singlePhotonExample/`, split them into jobs of 4 events each, and then submit them via slurm, placing the output in `hgcal_minimal_eval_example/output/test25-01-13`:
+
+```
+./submitSlurm.py -nEvents 4 -input ../hgcal_minimal_eval_example/singlePhotonExample/ -tag test25-01-13
+```
+
+To check the status of your jobs, run: 
 
 ```
 squeue -u USER
 ```
 
 , where `USER` is your username. 
-
-If you completed the email field in the submit file, you will also get notifications when a job starts and finishes.  
