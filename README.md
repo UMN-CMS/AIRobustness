@@ -68,42 +68,35 @@ This script will create a file called `myplots.html`, which can be opened in a b
 
 ## Running slurm jobs for model outputs
 
-Make a new directory for a new set of jobs in the directory with your container (.sif) file, and copy over the content of the `slurm` directory. For example, 
+First, create a new directory in which to run your jobs within the directory with your container (.sif) file, and then copy over the contents of the `slurm` directory.
+For example:
 
 ```
-cd hgcalmlSingularity
+cd hgcalmlSingularity # Contains .sif file
 mkdir slurmSinglePhotonExample25-01-13
 cd slurmSinglePhotonExample25-01-13
 cp -r ../hgcal_minimal_eval_example/slurm/* . 
 ```
 
-Running `./submitSlurm.py --help` will print out a help menu that explains all options:
+`submitSlurm.py` handles division of the jobs and submission.
+It has several command-line arguments:
+- `--input` (or `-i`), which points to the directory with the npz files (this is a required argument)
+- `--nEvents` (or `-n`), which is the number of events you would like per job (this is a required argument)
+- `--tag` (or `-t`), which is the name of the directory in `output` to which the pkl files will be output
+
+Note: running `./submitSlurm.py --help` will print out a help menu that explains all options. 
+
+As an example, 
+the following will take all .npz files in the directory `../hgcal_minimal_eval_example/singlePhotonExample/`, 
+split them into jobs of 20 events each, 
+and then submit them via slurm, placing the output in `hgcal_minimal_eval_example/output/test25-01-13`:
 
 ```
-% ./submitSlurm.py --help
-usage: submitSlurm.py [-h] -n NEVENTS -i INPUT [-t TAG]
-
-Slurm submit script
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -n NEVENTS, --nEvents NEVENTS
-                        Number of events per job
-  -i INPUT, --input INPUT
-                        Path to directory with npz files
-  -t TAG, --tag TAG     Tag for output
+./submitSlurm.py -nEvents 20 -input ../hgcal_minimal_eval_example/singlePhotonExample/ -tag test25-01-13
 ```
 
-As an example, the following will take all .npz files in the directory `../hgcal_minimal_eval_example/singlePhotonExample/`, split them into jobs of 4 events each, and then submit them via slurm, placing the output in `hgcal_minimal_eval_example/output/test25-01-13`:
-
-```
-./submitSlurm.py -nEvents 4 -input ../hgcal_minimal_eval_example/singlePhotonExample/ -tag test25-01-13
-```
-
-To check the status of your jobs, run: 
+To check the status of your jobs, run the following inserting your MSI username: 
 
 ```
 squeue -u USER
 ```
-
-, where `USER` is your username. 
