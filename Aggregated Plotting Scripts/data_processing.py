@@ -125,6 +125,12 @@ def find_first_hit(z_vals,layer_positions):
     firstLayer = np.argwhere(firstZ==layer_positions)[0][0]
     return firstLayer
 
+def maxELayer(z, energy, layer_positions):
+    z = np.round(z)
+    energy_per_layer = [ np.sum(energy[z==lz]) for lz in layer_positions]
+    return np.argmax(energy_per_layer)
+
+
 def pca(x,y,z, energy = None):
     '''
     Calculates the First principle component using PCA for a 3d data set.
@@ -357,3 +363,10 @@ def accumulate_histograms(hist_data, data, score_noise_filter, pass_noise_filter
             hist_data['low_eta'][labels[category]].append(ratio)
         else:
             hist_data['high_eta'][labels[category]].append(ratio)
+
+def fullmask(data):
+    '''
+    The masking functions are meant to be called as a final step on the data.
+    These will simulate different failure modes of the detector as represented in changes in data.
+    '''
+    return np.ones_like(data, dtype=bool)

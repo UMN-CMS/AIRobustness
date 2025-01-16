@@ -9,6 +9,8 @@ def default_format():
         "label1":"Hist1",
         "label2":"Hist2",
         "saveas":"histPlot.png",
+        "upper":100,
+        "lower":0,
         "sig":None
     }
     return formatText
@@ -16,36 +18,22 @@ def default_format():
 def plot_labels_select(metric, numerator, denominator):
     sampleNum, labelNum = numerator[0], numerator[1]
     sampleDen, labelDen = denominator[0], denominator[1]
+    
     formatText = {}
-    
-    title = get_title(metric, sampleNum, sampleDen)
-    x_axis = get_x_axis(metric)
-    y_axis = "Ratio"
-    label1 = get_label(metric, sampleNum, sampleDen, labelNum)
-    label2 = get_label(metric, sampleDen, sampleNum, labelDen)
-    saveas = get_saveName(metric, sampleNum, sampleDen, labelNum)
-    bins = get_bins(metric)
-    upper = get_upper(metric)
-    lower = get_lower(metric)
-    sig = None
+    formatText["title"] = get_title(metric, sampleNum, sampleDen)
+    formatText["x_axis"] = get_x_axis(metric)
+    formatText["y_axis"] = "Ratio"
+    formatText["label1"] = get_label(metric, sampleNum, sampleDen, labelNum)
+    formatText["label2"] = get_label(metric, sampleDen, sampleNum, labelDen)
+    formatText["saveas"] = get_saveName(metric, sampleNum, sampleDen, labelNum)
+    formatText["bins"] = get_bins(metric)
+    formatText["upper"] = get_upper(metric)
+    formatText["lower"] = get_lower(metric)
+    formatText["sig"] = None
 
-    formatText["title"] = title
-    formatText["x_axis"] = x_axis
-    formatText["y_axis"] = y_axis
-    formatText["label1"] = label1
-    formatText["label2"] = label2
-    formatText["saveas"] = saveas
-    formatText["bins"] = bins
-    formatText["upper"] = upper
-    formatText["lower"] = lower
-    formatText["sig"] = sig
-
-    
     return formatText
 
-
 def get_title(metric, sampleNum, sampleDen):
-
     if sampleNum == sampleDen:
         title = f"Sample {sampleNum} "
     else:
@@ -73,6 +61,8 @@ def get_title(metric, sampleNum, sampleDen):
         title += "BestFit Average Weighted Distance"
     elif metric == "firstLayer":
         title += "First Layer"
+    elif metric == "maxELayer":
+        title += "Max Energy Layer"
     else:
         print("Defaulting metric_title")
         title += default_format()["title"]
@@ -82,7 +72,7 @@ def get_title(metric, sampleNum, sampleDen):
 def get_x_axis(metric):
     if metric == "bestFit_r95" or metric == "bestFit_r68" or metric == "radial_68" or metric == "radial_95":
         return "Radial Distance (cm)"
-    elif metric == "coe_layers" or metric == "firstLayer":
+    elif metric == "coe_layers" or metric == "firstLayer" or metric == "maxELayer":
         return "Layer Index"
     elif metric == "longitudinal_68" or metric == "longitudinal_95":
         return "Longitudinal Distance (cm)"
@@ -119,6 +109,8 @@ def get_label(metric, sample, sampleCompare, label):
         formatLabel += "Avg Weighted Distance"
     elif metric == "firstLayer":
         formatLabel += "layerIndex"
+    elif metric == "maxELayer":
+        formatLabel += "maxELayer"
     else:
         formatLabel += default_format()["label"]
 
@@ -151,6 +143,7 @@ def get_bins(metric):
     elif metric == "abs_dists" : return 80
     elif metric == "avg_weighted_dist" : return 80
     elif metric == "firstLayer" : return 50
+    elif metric == "maxELayer" : return 50
     
 def get_upper(metric):
     if metric == "bestFit_r95" : return 9
@@ -164,6 +157,7 @@ def get_upper(metric):
     elif metric == "abs_dists" : return 2250
     elif metric == "avg_weighted_dist" : return 2.75
     elif metric == "firstLayer" : return 50
+    elif metric == "maxELayer" : return 50
       
 def get_lower(metric):
     if metric == "bestFit_r95" : return 3
@@ -177,3 +171,4 @@ def get_lower(metric):
     elif metric == "abs_dists" : return 1050
     elif metric == "avg_weighted_dist" : return 1.25
     elif metric == "firstLayer" : return 0
+    elif metric == "maxELayer" : return 0
