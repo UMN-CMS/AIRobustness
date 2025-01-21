@@ -11,7 +11,7 @@ into a single file that can be dealt with as one unit. This removes overhead of 
 '''
 
 # file_pattern = "/users/6/vadna042/hgcalml/hgcal_minimal_eval_example/output/singlePhotonOut9/*.pkl"
-file_pattern = "/home/nstrobbe/shared/AIRobust/modifiedevents/singleTau24-11-25_E50_HENeighborsLayer8Removed/*.pkl"
+file_pattern = "/home/nstrobbe/shared/AIRobust/modifiedeventspkl/singlePhoton24-04-01_E50_zshifted1-0cm/*.pkl"
 file_limit = 1000
 files = glob.glob(file_pattern)[:file_limit]
 data, score_noise_filter, pass_noise_filter, out_gravnet = [], [], [], []
@@ -27,7 +27,7 @@ for file in tqdm(files):
 
 del files, file_pattern
 
-sample = "TauE50Neighbors"
+sample = "singlePhotonZShift"
 
 with open(f"pickles/{sample}/{sample}_data.pkl", 'wb') as f:
     pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)

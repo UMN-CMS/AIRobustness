@@ -13,7 +13,8 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
     """Aggregate all necessary data from the files."""
     
     results = {
-        "skips": [],
+        "skips_true": [],
+        "skips_pred": [],
         "radial_68_pred": [],
         "radial_95_pred": [],
         "radial_68_true": [],
@@ -85,7 +86,7 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
 
         if len(valid_pred_indices) == 0:
             print(f"Skipping event {file_i}")
-            results["skips"].append(file_i)
+            results["skips_pred"].append(file_i)
             continue
 
 
@@ -114,22 +115,49 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
             results["longitudinal_68_true"].append(longitudinal_68_true)
             results["longitudinal_95_true"].append(longitudinal_95_true)
 
-        
-        abs_dists_true = dp.calculate_absolute_distances(x_true, y_true, z_true)
-        abs_dists_pred = dp.calculate_absolute_distances(x_pred, y_pred, z_pred)
-
         results["firstLayer_true"].append(dp.find_first_hit(z_true,layer_positions))
         results["firstLayer_pred"].append(dp.find_first_hit(z_pred,layer_positions))
         results["maxELayer_true"].append(dp.maxELayer(z_true, energy_true, layer_positions))
         results["maxELayer_pred"].append(dp.maxELayer(z_pred, energy_pred, layer_positions))
+
+
+        #=========================================================  
+
+        #PCA based metrics
+        abs_dists_true = dp.calculate_absolute_distances(x_true, y_true, z_true)
+        abs_dists_pred = dp.calculate_absolute_distances(x_pred, y_pred, z_pred)
+        
+        bestFit_r95_true = dp.e_radius(abs_dists_true, energy_true, 0.95)
+        bestFit_r95_pred = dp.e_radius(abs_dists_pred, energy_pred, 0.95)
+        bestFit_r68_true = dp.e_radius(abs_dists_true, energy_true, 0.68)
+        bestFit_r68_pred = dp.e_radius(abs_dists_pred, energy_pred, 0.68)
+
+
+
+        if bestFit_r95_true == None:
+            print(f"bestFit_r95_true None for event {file_i}")
+        elif bestFit_r95_pred == None:
+            print(f"bestFit_r95_pred None for event {file_i}")
+        else:
+            results["bestFit_r95_true"].append(bestFit_r95_true)
+            results["bestFit_r95_pred"].append(bestFit_r95_pred)
+
+        if bestFit_r68_true == None:
+            print(f"bestFit_r68_true None for event {file_i}")
+        elif bestFit_r68_pred == None:
+            print(f"bestFit_r68_pred None for event {file_i}")
+        else:
+            results["bestFit_r68_true"].append(bestFit_r68_true)
+            results["bestFit_r68_pred"].append(bestFit_r68_pred)
+            
+
+        
         results["chi2_true"].append(dp.calculate_chi2(abs_dists_true, energy_true))
         results["chi2_pred"].append(dp.calculate_chi2(abs_dists_pred, energy_pred))
+
         results["abs_dists_true"].append(sum(abs_dists_true))
         results["abs_dists_pred"].append(sum(abs_dists_pred))
-        results["bestFit_r95_true"].append(dp.e_radius(abs_dists_true, energy_true, 0.95))
-        results["bestFit_r68_true"].append(dp.e_radius(abs_dists_true, energy_true, 0.68))
-        results["bestFit_r95_pred"].append(dp.e_radius(abs_dists_pred, energy_pred, 0.95))
-        results["bestFit_r68_pred"].append(dp.e_radius(abs_dists_pred, energy_pred, 0.68))
+        
         results["avg_weighted_dist_true"].append(sum(abs_dists_true * energy_true) / sum(energy_true))
         results["avg_weighted_dist_pred"].append(sum(abs_dists_pred * energy_pred) / sum(energy_pred))
 
@@ -282,12 +310,15 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     data1 = data[numerator[0]][f"{metric}_{numerator[1]}"]
     data2 = data[denominator[0]][f"{metric}_{denominator[1]}"]
 
+    #These should always be binned along the layer index
+    if metric == "firstLayer" or metric == "maxELayer" or metric == "coe_layers": 
+        sig = None
     formatText = plot_labels.plot_labels_select(metric, numerator, denominator)
 
-    print(len(data1))
-    print(len(data2))
-    print(np.mean(data1))
-    print(np.mean(data2))
+    # print(len(data1))
+    # print(len(data2))
+    # print(np.mean(data1))
+    # print(np.mean(data2))
 
     # binning
     avg = np.mean([np.mean(data1), np.mean(data2)]) # Plots center of both hists
@@ -385,8 +416,11 @@ def main():
     # If instead you list more outside the samples[1] array then you will 
     # make comparisons to multiple different sets. This is for if you want to avoid making the 
     # powerset of comparisons (which you will likelty never want)
-    # samples = ["PionE50",["PionE50Layer29","PionE50Neighbors"]]
-    samples = ["nominal",["singlePhotonLayer9","singlePhotonLayer8-9-10"]]
+    samples = ["PionE50",["PionE50Layer29","PionE50Neighbors"]]
+    # samples = ["nominal",["singlePhotonLayer9","singlePhotonLayer8-9-10"]]
+    # samples = ["nominal",["singlePhotonZShift"]]
+    # samples = ["PionE50"]
+    # samples = ["nominal"]
     labels = ["true", "pred"]
     results = {}
 
@@ -430,12 +464,12 @@ def main():
 
     # plot_hist_ratio(results, "maxELayer", ("TauE50","true"), ("TauE50","pred"))
 
-    print(f"Plotting energy_res {samples[0]}")
-    plot_energy_resolution(results[samples[0]], samples[0])
-    if (len(samples) > 1):
-        for sample in samples[1]:
-            print(f"Plotting energy_res {sample}")
-            plot_energy_resolution(results[sample], sample)
+    # print(f"Plotting energy_res {samples[0]}")
+    # plot_energy_resolution(results[samples[0]], samples[0])
+    # if (len(samples) > 1):
+    #     for sample in samples[1]:
+    #         print(f"Plotting energy_res {sample}")
+    #         plot_energy_resolution(results[sample], sample)
             
 
     
