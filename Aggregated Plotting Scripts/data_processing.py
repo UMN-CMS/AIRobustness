@@ -187,15 +187,16 @@ def e_radius(distances, energy, e_limit):
     distances = np.array(distances) #Type check type check
     energy = np.array(energy)
     indexsort = np.argsort(distances)
-    distances = distances[indexsort] 
+    distances = distances[indexsort]
     energy = energy[indexsort]
     e_total = np.sum(energy)
     e_running = 0
     for i in range(len(distances)):
-        if e_running < e_total * e_limit:
-            e_running += energy[i]
-        else:
+        e_running += energy[i]
+        if e_running >= e_total * e_limit:
             return distances[i] 
+    print("You shouldn't have gotten here")
+    return distances[-1]
 
 def calculate_chi2(absolute_dists, energy_true):
     return sum((absolute_dists**2) / (len(energy_true) - 4))
