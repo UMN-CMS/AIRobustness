@@ -127,30 +127,10 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
         abs_dists_true = dp.calculate_absolute_distances(x_true, y_true, z_true)
         abs_dists_pred = dp.calculate_absolute_distances(x_pred, y_pred, z_pred)
         
-        bestFit_r95_true = dp.e_radius(abs_dists_true, energy_true, 0.95)
-        bestFit_r95_pred = dp.e_radius(abs_dists_pred, energy_pred, 0.95)
-        bestFit_r68_true = dp.e_radius(abs_dists_true, energy_true, 0.68)
-        bestFit_r68_pred = dp.e_radius(abs_dists_pred, energy_pred, 0.68)
-
-
-
-        if bestFit_r95_true == None:
-            print(f"bestFit_r95_true None for event {file_i}")
-        elif bestFit_r95_pred == None:
-            print(f"bestFit_r95_pred None for event {file_i}")
-        else:
-            results["bestFit_r95_true"].append(bestFit_r95_true)
-            results["bestFit_r95_pred"].append(bestFit_r95_pred)
-
-        if bestFit_r68_true == None:
-            print(f"bestFit_r68_true None for event {file_i}")
-        elif bestFit_r68_pred == None:
-            print(f"bestFit_r68_pred None for event {file_i}")
-        else:
-            results["bestFit_r68_true"].append(bestFit_r68_true)
-            results["bestFit_r68_pred"].append(bestFit_r68_pred)
-            
-
+        results["bestFit_r95_true"].append(dp.e_radius(abs_dists_true, energy_true, 0.95))
+        results["bestFit_r95_pred"].append(dp.e_radius(abs_dists_pred, energy_pred, 0.95))
+        results["bestFit_r68_true"].append(dp.e_radius(abs_dists_true, energy_true, 0.68))
+        results["bestFit_r68_pred"].append(dp.e_radius(abs_dists_pred, energy_pred, 0.68))
         
         results["chi2_true"].append(dp.calculate_chi2(abs_dists_true, energy_true))
         results["chi2_pred"].append(dp.calculate_chi2(abs_dists_pred, energy_pred))
@@ -164,106 +144,6 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
     # print(f"{file_limit - len(results['skips'])} / {file_limit} used.")
 
     return results
-
-def plot_radial_shower_spread(results):
-    """Plot histograms for Radial Shower Spread."""
-    plt.figure(figsize=(18, 6))
-
-    # Determine the range for the bins based on both 68% and 95% data
-    all_radial_values_pred = np.concatenate([results["radial_68_pred"], results["radial_95_pred"]])
-    all_radial_values_true = np.concatenate([results["radial_68_true"], results["radial_95_true"]])
-    min_val = min(np.min(all_radial_values_pred), np.min(all_radial_values_true))
-    max_val = max(np.max(all_radial_values_pred), np.max(all_radial_values_true))
-
-    # Create bins with smaller bin size (0.1)
-    bin_size = 0.1
-    bins = np.arange(min_val, max_val + bin_size, bin_size)
-
-    # Plot predicted radial spread
-    plt.subplot(1, 2, 1)
-    plt.hist(results["radial_68_pred"], bins=bins, alpha=0.5, label='68% Pred Radial Spread')
-    plt.hist(results["radial_95_pred"], bins=bins, alpha=0.5, label='95% Pred Radial Spread')
-    plt.xlabel('Radial Distance')
-    plt.ylabel('Frequency')
-    plt.title('Predicted Radial Shower Spread')
-    plt.legend()
-
-    # Plot true radial spread
-    plt.subplot(1, 2, 2)
-    plt.hist(results["radial_68_true"], bins=bins, alpha=0.5, label='68% True Radial Spread')
-    plt.hist(results["radial_95_true"], bins=bins, alpha=0.5, label='95% True Radial Spread')
-    plt.xlabel('Radial Distance')
-    plt.ylabel('Frequency')
-    plt.title('True Radial Shower Spread')
-    plt.legend()
-
-    plt.tight_layout()
-    plt.show()
-
-def plot_longitudinal_shower_spread(results, layer_positions):
-    """Plot histograms for Longitudinal Shower Spread and COE layers."""
-    plt.figure(figsize=(18, 6))
-
-    # Determine the range for the bins based on both 68% and 95% data
-    all_longitudinal_values_pred = np.concatenate([results["longitudinal_68_pred"], results["longitudinal_95_pred"]])
-    all_longitudinal_values_true = np.concatenate([results["longitudinal_68_true"], results["longitudinal_95_true"]])
-    min_val = min(np.min(all_longitudinal_values_pred), np.min(all_longitudinal_values_true))
-    max_val = max(np.max(all_longitudinal_values_pred), np.max(all_longitudinal_values_true))
-
-    # Create bins with smaller bin size (0.1)
-    bin_size = 0.1
-    bins = np.arange(min_val, max_val + bin_size, bin_size)
-
-    # Plot predicted longitudinal spread
-    plt.subplot(1, 2, 1)
-    plt.hist(results["longitudinal_68_pred"], bins=bins, alpha=0.5, label='68% Pred Longitudinal Spread')
-    plt.hist(results["longitudinal_95_pred"], bins=bins, alpha=0.5, label='95% Pred Longitudinal Spread')
-    plt.xlabel('Longitudinal Spread (cm)')
-    plt.ylabel('Number of Events')
-    plt.title('Predicted Longitudinal Shower Spread')
-    plt.legend()
-    plt.yscale('log')
-
-    # Plot true longitudinal spread
-    plt.subplot(1, 2, 2)
-    plt.hist(results["longitudinal_68_true"], bins=bins, alpha=0.5, label='68% True Longitudinal Spread')
-    plt.hist(results["longitudinal_95_true"], bins=bins, alpha=0.5, label='95% True Longitudinal Spread')
-    plt.xlabel('Longitudinal Spread (cm)')
-    plt.ylabel('Number of Events')
-    plt.title('True Longitudinal Shower Spread')
-    plt.legend()
-    plt.yscale('log')
-
-    plt.tight_layout()
-    plt.show()
-
-def plot_coe_layers(results, layer_positions):
-    """Plot histograms for COE layers."""
-    plt.figure(figsize=(18, 6))
-
-    # Plot COE layers for predicted
-    plt.subplot(1, 2, 1)
-    counts, _ = np.histogram(results["coe_layers_pred"], bins=np.arange(1, len(layer_positions) + 2) - 0.5)
-    plt.hist(results["coe_layers_pred"], bins=np.arange(1, len(layer_positions) + 2) - 0.5, alpha=0.5, label='Predicted COE Layers')
-    plt.xlabel('Layer Index')
-    plt.ylabel('Number of Events')
-    plt.title('Predicted COE Layers')
-    plt.legend()    
-    plt.yscale('log')
-
-
-    # Plot COE layers for true
-    plt.subplot(1, 2, 2)
-    counts, _ = np.histogram(results["coe_layers_true"], bins=np.arange(1, len(layer_positions) + 2) - 0.5)
-    plt.hist(results["coe_layers_true"], bins=np.arange(1, len(layer_positions) + 2) - 0.5, alpha=0.5, label='True COE Layers')
-    plt.xlabel('Layer Index')
-    plt.ylabel('Number of Events')
-    plt.title('True COE Layers')
-    plt.legend()
-    plt.yscale('log')
-
-    plt.tight_layout()
-    plt.show()
 
 def plot_energy_resolution(results, sample):
     hist_data = results["hist_data"]
@@ -313,18 +193,14 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     #These should always be binned along the layer index
     if metric == "firstLayer" or metric == "maxELayer" or metric == "coe_layers": 
         sig = None
+    
     formatText = plot_labels.plot_labels_select(metric, numerator, denominator)
-
-    # print(len(data1))
-    # print(len(data2))
-    # print(np.mean(data1))
-    # print(np.mean(data2))
 
     # binning
     avg = np.mean([np.mean(data1), np.mean(data2)]) # Plots center of both hists
     std = np.mean([np.std(data1),np.std(data2)])
 
-
+    #auto borders
     if sig==0:
         upper = np.max(np.concatenate((data1,data2)))
         lower = np.min(np.concatenate((data1,data2)))
@@ -341,6 +217,7 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
                 label=formatText["x_axis"], underflow=False, overflow=False
             )
         ).fill(data2)
+    #hand set borders
     elif sig==None:
         hist_1 = hist.Hist(
             hist.axis.Regular(
@@ -355,6 +232,7 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
                 label=formatText["x_axis"], underflow=False, overflow=False
             )
         ).fill(data2)
+    #centered, #sig on either side
     else:
         hist_1 = hist.Hist(
             hist.axis.Regular(
@@ -381,7 +259,7 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
         rp_ylabel=formatText["y_axis"],
         rp_ybound=[0,2.5],
         rp_num_label=f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}",
-        rp_denom_label=f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}",
+        rp_denom_label=f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted",
         rp_uncert_draw_type="bar",  # line or bar
         
     )
@@ -390,6 +268,67 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     plt.close()
     return
 
+
+def plot_ratio(data, metric, numerator, denominator, sig=None):
+        
+    data1 = data[numerator[0]][f"{metric}_{numerator[1]}"]
+    data2 = data[denominator[0]][f"{metric}_{denominator[1]}"]
+    formatText = plot_labels.plot_labels_select(metric, numerator, denominator)
+
+    # binning
+    avg = np.mean([np.mean(data1), np.mean(data2)]) # Plots center of both hists
+    std = np.mean([np.std(data1),np.std(data2)])
+
+    # histy1, histx1 = np.histogram(data1, bins = formatText["bins"], range = [formatText["lower"], formatText["upper"]])
+    # histy2, histx2 = np.histogram(data2, bins = formatText["bins"], range = [formatText["lower"], formatText["upper"]])
+    # hist1err = np.sqrt(histy1)
+    # hist2err = np.sqrt(histy2)
+
+
+    fig, axs = plt.subplots(nrows=2, figsize=(10,8), sharex=True, gridspec_kw={"hspace":0,"height_ratios":[3,1]})
+    
+    # axs[0].bar(histx1[1:], histy1, width=(formatText["upper"]-formatText["lower"])/formatText["bins"], 
+    #             yerr = hist1err, align = "edge", color="blue", ecolor="blue", fill = False,
+    #             label = f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}")
+    # axs[0].bar(histx2[1:], histy2, width=(formatText["upper"]-formatText["lower"])/formatText["bins"], 
+    #             yerr = hist2err, align = "edge", color="orange", ecolor="orange", fill = False,
+    #             label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted")
+
+
+    #Top plot
+    histy1, histx1,_ = axs[0].hist(data1, bins = formatText["bins"], histtype="step",
+                                range = [formatText["lower"],formatText["upper"]],
+                                label = f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}")
+    histy2, histx2,_ = axs[0].hist(data2, bins = formatText["bins"], histtype="step",
+                                range = [formatText["lower"],formatText["upper"]],
+                                label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted")
+
+    #Ratio plot
+    ratiox = np.asarray( [(x + histx1[i - 1])/2 for i, x in enumerate(histx1) if i > 0] )
+    ratioy = np.asarray( [histy1[i]/histy2[i] if histy1[i] != 0 and histy2[i] != 0 else -1 for i in range(len(histy1))] ) #This is how its always meant to be
+    #hist output and division is always >= 0 so use -1 as filter flag
+    ratiox = ratiox[ratioy!=-1]
+    ratioy = ratioy[ratioy!=-1]
+    axs[1].scatter(ratiox,ratioy, color="black")
+    axs[1].axhline(y=1, linestyle="--", linewidth="1", color="black")
+
+    #Format
+    axs[0].set_title(formatText["title"])
+    axs[1].set_xlabel(formatText["x_axis"])
+    axs[0].set_ylabel("Count")
+    axs[1].set_ylabel("Ratio")
+    axs[0].legend()
+    axs[1].set_ylim(0,2.4)
+
+    fig.savefig(f"best{denominator[0]}{denominator[1]}"+formatText["saveas"])
+    # plt.show()
+    plt.close()
+            
+    return ratiox, ratioy
+
+
+
+
 def main():
     # Set file pattern and file limit
     # file_pattern = r'C:\Users\tsoli\OneDrive\Documents\School\1 - University of Minnesota\Year 17\Year 1 Research\picklefiles\photons\*.pkl'
@@ -397,29 +336,26 @@ def main():
     # file_pattern_nominal = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/nominal/*.pkl"
     # file_pattern_FTFP = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/FTFP_BERT_EMN/*.pkl"
     file_limit = 1000
-    layer_positions = np.array([
-        322, 323, 325, 326, 328, 329, 331, 332, 334, 335,
-        337, 338, 340, 341, 343, 344, 346, 347, 349, 350,
-        352, 353, 355, 356, 358, 359, 361, 362, 368, 373,
-        379, 384, 389, 395, 400, 406, 411, 417, 422, 428,
-        436, 445, 453, 462, 470, 479, 487, 496, 505, 513
-    ])
 
 
-    metrics = ["bestFit_r95", "bestFit_r68", "radial_68", \
-               "radial_95", "coe_layers", "longitudinal_68", \
-               "longitudinal_95", "chi2", "abs_dists", "avg_weighted_dist", \
-                "firstLayer", "maxELayer"]
-    
+    layer_positions = np.loadtxt("unique_z.txt")
+
+    # metrics = ["bestFit_r95", "bestFit_r68", "radial_68", \
+    #            "radial_95", "coe_layers", "longitudinal_68", \
+    #            "longitudinal_95", "chi2", "abs_dists", "avg_weighted_dist", \
+    #             "firstLayer", "maxELayer"]
+    metrics = ["maxELayer"]
+
     # If you want to process more than one set for comparison
     # Then set samples[0] as the comparison set and samples[1]
     # If instead you list more outside the samples[1] array then you will 
     # make comparisons to multiple different sets. This is for if you want to avoid making the 
     # powerset of comparisons (which you will likelty never want)
-    samples = ["PionE50",["PionE50Layer29","PionE50Neighbors"]]
+
+    # samples = ["PionE50",["PionE50Layer29","PionE50Neighbors"]]
     # samples = ["nominal",["singlePhotonLayer9","singlePhotonLayer8-9-10"]]
     # samples = ["nominal",["singlePhotonZShift"]]
-    # samples = ["PionE50"]
+    samples = ["PionE50"]
     # samples = ["nominal"]
     labels = ["true", "pred"]
     results = {}
@@ -432,6 +368,8 @@ def main():
     if len(samples) > 1:
         for sample in samples[1]:
             results[sample] = aggregate_data(sample, layer_positions, file_limit)
+
+    print(sorted(results["PionE50"]["maxELayer_true"]))
 
     #Functional programming save me please! This is an abomination! I need the monad!
 
@@ -449,20 +387,20 @@ def main():
 
             if (type(sampleDen) == str):
                 print(f"Plotting {metric}: {sampleNum} | {sampleDen} | {labelNum} | {labelDen}")
-                plot_hist_ratio(results, metric, (sampleNum,labelNum), (sampleDen,labelDen), 0)
+                plot_ratio(results, metric, (sampleNum,labelNum), (sampleDen,labelDen), 0)
                 
             else:
                 if (type(sampleNum) == str):
                     for compSample in sampleDen:
                             print(f"Plotting {metric}: {sampleNum} | {compSample} | {labelNum} | {labelDen}")
-                            plot_hist_ratio(results, metric, (sampleNum,labelNum), (compSample,labelDen), 0)
+                            plot_ratio(results, metric, (sampleNum,labelNum), (compSample,labelDen), 0)
                 else:
                     for compSample in sampleNum:
                         print(f"Plotting {metric}: {compSample} | {compSample} | {labelNum} | {labelDen}")
-                        plot_hist_ratio(results, metric, (compSample,labelNum), (compSample,labelDen), 0)
+                        plot_ratio(results, metric, (compSample,labelNum), (compSample,labelDen), 0)
 
 
-    # plot_hist_ratio(results, "maxELayer", ("TauE50","true"), ("TauE50","pred"))
+    # plot_hist_ratio(results, "bestFit_r95", (samples[0],"true"), (samples[0],"pred"),0)
 
     # print(f"Plotting energy_res {samples[0]}")
     # plot_energy_resolution(results[samples[0]], samples[0])

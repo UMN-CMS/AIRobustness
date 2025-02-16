@@ -121,13 +121,17 @@ def calculate_longitudinal_shower_spread(cluster_indices, zpos, energies, layer_
     return nearest_layer_com, longitudinal_68, longitudinal_95
 
 def find_first_hit(z_vals,layer_positions):
-    firstZ = np.round(sorted(z_vals)[0])
-    firstLayer = np.argwhere(firstZ==layer_positions)[0][0]
-    return firstLayer
+    return np.argmin(np.abs(layer_positions - sorted(z_vals)[0]))
 
 def maxELayer(z, energy, layer_positions):
-    z = np.round(z)
-    energy_per_layer = [ np.sum(energy[z==lz]) for lz in layer_positions]
+    #so take z and map it to the assumed layer positions which are already the ints. 
+    #To convert we cannot use the equaltiy because I fear the occasional value shifting after the closest val is coppied,
+    #This may be irrational, but we should instead make the index comparison.
+    #So we sum energy indexed by the bool array created by indexing the index_identifier array by i in range(50)
+    #Well actually lets see if we make it one way and another and check that theyre the same
+    #start with the easy one. Afterall, if we make it save the relavant float we can make the comparison anyway, there shouldnt be any problem
+    z_closest_index = np.asarray([np.argmin(np.abs(layer_positions-x)) for x in z ])
+    energy_per_layer = [ np.sum(np.asarray(energy)[z_closest_index==i]) for i in range(len(layer_positions)) ]
     return np.argmax(energy_per_layer)
 
 
