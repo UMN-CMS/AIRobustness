@@ -13,8 +13,7 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
     """Aggregate all necessary data from the files."""
     
     results = {
-        "skips_true": [],
-        "skips_pred": [],
+        "skips": [],
         "radial_68_pred": [],
         "radial_95_pred": [],
         "radial_68_true": [],
@@ -85,8 +84,8 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
         valid_true_indices = np.where(true_clusters != 0)[0]
 
         if len(valid_pred_indices) == 0:
-            print(f"Skipping event {file_i}")
-            results["skips_pred"].append(file_i)
+            # print(f"Skipping event {file_i}")
+            results["skips"].append(file_i)
             continue
 
 
@@ -141,7 +140,7 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
         results["avg_weighted_dist_true"].append(sum(abs_dists_true * energy_true) / sum(energy_true))
         results["avg_weighted_dist_pred"].append(sum(abs_dists_pred * energy_pred) / sum(energy_pred))
 
-    # print(f"{file_limit - len(results['skips'])} / {file_limit} used.")
+    print(f"{file_limit - len(results['skips'])} / {file_limit} used.")
 
     return results
 
@@ -187,8 +186,8 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     # compare can be set to either "pred" or "true" if we want to compare either the truths or the preds for the two data sets
     # Extract necessary data
 
-    data1 = data[numerator[0]][f"{metric}_{numerator[1]}"]
-    data2 = data[denominator[0]][f"{metric}_{denominator[1]}"]
+    data1 = np.asarray(data[numerator[0]][f"{metric}_{numerator[1]}"]) + 0.000001
+    data2 = np.asarray(data[denominator[0]][f"{metric}_{denominator[1]}"]) + 0.000001
 
     #These should always be binned along the layer index
     if metric == "firstLayer" or metric == "maxELayer" or metric == "coe_layers": 
@@ -268,9 +267,14 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     plt.close()
     return
 
-
 def plot_ratio(data, metric, numerator, denominator, sig=None):
-        
+    '''
+    Generic plotting utility for making histogram ratio comparison plots.
+    hist1 and hist2 must be 1d arrays of data to be turned into histograms
+    formatText is a dict containing all graphs strings for formatting. 
+    If anything isnt present, it will default to a generic string.
+    '''    
+    
     data1 = data[numerator[0]][f"{metric}_{numerator[1]}"]
     data2 = data[denominator[0]][f"{metric}_{denominator[1]}"]
     formatText = plot_labels.plot_labels_select(metric, numerator, denominator)
@@ -279,11 +283,11 @@ def plot_ratio(data, metric, numerator, denominator, sig=None):
     avg = np.mean([np.mean(data1), np.mean(data2)]) # Plots center of both hists
     std = np.mean([np.std(data1),np.std(data2)])
 
+    if metric == "firstLayer" or metric == "maxELayer" or metric == "coe_layers": 
+        sig = None
+
     # histy1, histx1 = np.histogram(data1, bins = formatText["bins"], range = [formatText["lower"], formatText["upper"]])
     # histy2, histx2 = np.histogram(data2, bins = formatText["bins"], range = [formatText["lower"], formatText["upper"]])
-    # hist1err = np.sqrt(histy1)
-    # hist2err = np.sqrt(histy2)
-
 
     fig, axs = plt.subplots(nrows=2, figsize=(10,8), sharex=True, gridspec_kw={"hspace":0,"height_ratios":[3,1]})
     
@@ -294,23 +298,53 @@ def plot_ratio(data, metric, numerator, denominator, sig=None):
     #             yerr = hist2err, align = "edge", color="orange", ecolor="orange", fill = False,
     #             label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted")
 
+    if sig==0:
+        upper = np.max(np.concatenate((data1,data2))) + 0.5*std
+        lower = np.min(np.concatenate((data1,data2))) - 0.5*std
+        bins  = 100
+    elif sig == None:
+        upper = formatText["upper"]
+        lower = formatText["lower"]
+        bins  = formatText["bins"]
+    else:
+        upper = avg + sig*std
+        lower = avg - sig*std
+        bins  = 100
+
 
     #Top plot
-    histy1, histx1,_ = axs[0].hist(data1, bins = formatText["bins"], histtype="step",
-                                range = [formatText["lower"],formatText["upper"]],
-                                label = f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}")
-    histy2, histx2,_ = axs[0].hist(data2, bins = formatText["bins"], histtype="step",
-                                range = [formatText["lower"],formatText["upper"]],
-                                label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted")
+    histy1, histx1,_ = axs[0].hist(data1, bins = bins, histtype="step",
+                                range = [lower,upper],
+                                label = f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}",
+                                color="blue")
+    histy2, histx2,_ = axs[0].hist(data2, bins = bins, histtype="step",
+                                range = [lower,upper],
+                                label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted",
+                                color="orange")
+
+    #Top Plot Errorbars
+    x_centers = np.asarray( [(x + histx1[i - 1])/2 for i, x in enumerate(histx1) if i > 0] )
+    hist1err = np.sqrt(histy1)
+    hist2err = np.sqrt(histy2)
+
+    axs[0].errorbar(x_centers, histy1, hist1err, color="blue", ls="none")
+    axs[0].errorbar(x_centers, histy2, hist2err, color="orange", ls="none")
 
     #Ratio plot
-    ratiox = np.asarray( [(x + histx1[i - 1])/2 for i, x in enumerate(histx1) if i > 0] )
+    ratiox = x_centers
     ratioy = np.asarray( [histy1[i]/histy2[i] if histy1[i] != 0 and histy2[i] != 0 else -1 for i in range(len(histy1))] ) #This is how its always meant to be
     #hist output and division is always >= 0 so use -1 as filter flag
     ratiox = ratiox[ratioy!=-1]
+    hist1err = hist1err[ratioy!=-1]
+    hist2err = hist2err[ratioy!=-1] 
     ratioy = ratioy[ratioy!=-1]
+    ratioerr = (ratioy * np.sqrt(hist1err**-1 + hist2err**-1))
+
+
     axs[1].scatter(ratiox,ratioy, color="black")
+    axs[1].errorbar(ratiox,ratioy, ratioerr, color="black", ls="none")
     axs[1].axhline(y=1, linestyle="--", linewidth="1", color="black")
+
 
     #Format
     axs[0].set_title(formatText["title"])
@@ -320,45 +354,86 @@ def plot_ratio(data, metric, numerator, denominator, sig=None):
     axs[0].legend()
     axs[1].set_ylim(0,2.4)
 
-    fig.savefig(f"best{denominator[0]}{denominator[1]}"+formatText["saveas"])
+    fig.savefig(formatText["saveas"])
     # plt.show()
     plt.close()
             
-    return ratiox, ratioy
+    return (ratiox, ratioy, ratioerr)
 
+def rofR(ratio1, ratio2, metric, ratioName1, ratioName2):
+    ratio1x = ratio1[0]
+    ratio1y = ratio1[1]
+    ratio1err = ratio1[2]
+    ratio2x = ratio2[0]
+    ratio2y = ratio2[1]
+    ratio2err = ratio2[2]
 
+    fig, axs = plt.subplots(nrows=3, figsize=(10,8), sharex=True, gridspec_kw={"hspace":0})
+    formatText = plot_labels.plot_labels_select(metric, (ratioName1,"true"), (ratioName1,"pred"))
+
+    axs[0].scatter(ratio1x,ratio1y, color="black",
+                   label=f"{metric}: {ratioName1}_true over {ratioName1}_pred")
+    axs[0].errorbar(ratio1x, ratio1y, ratio1err, color="black", ls="none")
+    axs[0].axhline(y=1, linestyle="--", linewidth="1", color="black")
+    axs[1].scatter(ratio2x,ratio2y, color="black",
+                   label=f"{metric}: {ratioName2}_true over {ratioName2}_pred")
+    axs[1].errorbar(ratio2x, ratio2y, ratio2err, color="black", ls="none")
+    axs[1].axhline(y=1, linestyle="--", linewidth="1", color="black")
+
+    #ratio of ratios section
+    shared = list(set(ratio1x) & set(ratio2x))
+    ratioratio = []
+    ratioerrs = []
+    for x in shared:
+        i = np.where(ratio1x == x)[0]
+        j = np.where(ratio2x == x)[0]
+        ratioratio.append((ratio1y[i]/ratio2y[j])[0])
+        ratioerrs.append((ratio1y[i]/ratio2y[j] * ((ratio1err[i]/ratio1y[i])**2 + (ratio2err[j]/ratio2y[j])**2)**0.5)[0])
+
+    axs[2].scatter(shared,ratioratio, color="black")
+    axs[2].errorbar(shared,ratioratio,ratioerrs, color="black", ls="none")
+    axs[2].axhline(y=1, linestyle="--", linewidth="1", color="black")
+
+    axs[0].set_title(f"Ratio of Ratios {metric}")
+    axs[1].set_xlabel(formatText["x_axis"])
+    axs[0].set_ylabel("Ratio1")
+    axs[1].set_ylabel("Ratio2")
+    axs[2].set_ylabel("Ratio1/Ratio2")
+    axs[0].legend()
+    axs[1].legend()
+    axs[0].set_ylim(0,2.4)
+    axs[1].set_ylim(0,2.4)
+    # axs[2].set_ylim(0,10)
+    
+    fig.savefig(f"rofR_{metric}_{ratioName1}_{ratioName2}.png")
+
+    plt.close()
 
 
 def main():
-    # Set file pattern and file limit
-    # file_pattern = r'C:\Users\tsoli\OneDrive\Documents\School\1 - University of Minnesota\Year 17\Year 1 Research\picklefiles\photons\*.pkl'
-    #MSI paths
-    # file_pattern_nominal = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/nominal/*.pkl"
-    # file_pattern_FTFP = "/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/singlePhoton24-04-01/FTFP_BERT_EMN/*.pkl"
+    #set event limit - max 1000 for our datasets
     file_limit = 1000
 
-
+    #Z-positions. Precomputed
     layer_positions = np.loadtxt("unique_z.txt")
 
-    # metrics = ["bestFit_r95", "bestFit_r68", "radial_68", \
-    #            "radial_95", "coe_layers", "longitudinal_68", \
-    #            "longitudinal_95", "chi2", "abs_dists", "avg_weighted_dist", \
-    #             "firstLayer", "maxELayer"]
-    metrics = ["maxELayer"]
+    metrics = ["bestFit_r95", "bestFit_r68", "radial_68", \
+               "radial_95", "coe_layers", "longitudinal_68", \
+               "longitudinal_95", "chi2", "abs_dists", "avg_weighted_dist", \
+                "firstLayer", "maxELayer"]
+    # metrics = ["maxELayer"]
 
-    # If you want to process more than one set for comparison
-    # Then set samples[0] as the comparison set and samples[1]
-    # If instead you list more outside the samples[1] array then you will 
-    # make comparisons to multiple different sets. This is for if you want to avoid making the 
-    # powerset of comparisons (which you will likelty never want)
-
-    # samples = ["PionE50",["PionE50Layer29","PionE50Neighbors"]]
-    # samples = ["nominal",["singlePhotonLayer9","singlePhotonLayer8-9-10"]]
-    # samples = ["nominal",["singlePhotonZShift"]]
-    samples = ["PionE50"]
-    # samples = ["nominal"]
+    # Samples follows the given structure
+    # [sampleBase, [compSample,...]:optional]
+    # SampleBase is compared against all given compSamples.
+    # Minimum example is just sampleBase.
+    # No direct comparisons between compSamples, only sampleBase (base dataset generally)
+    # samples = ["PionE50"]
+    samples = ["nominal",["FTFP","singlePhotonLayer9", "singlePhotonLayer8-9-10"]]
+    # samples = ["PionE50",["PionE50Layer29"]]
     labels = ["true", "pred"]
     results = {}
+    ratios = {}
 
     if len(samples) == 0 or len(metrics) == 0 or len(labels) == 0:
         print("What did you even expect to happen? Invalid input set.")
@@ -369,38 +444,38 @@ def main():
         for sample in samples[1]:
             results[sample] = aggregate_data(sample, layer_positions, file_limit)
 
-    print(sorted(results["PionE50"]["maxELayer_true"]))
 
-    #Functional programming save me please! This is an abomination! I need the monad!
-
+    # produce the set of graph combinations
+    # Note, Choosing sig=0 will not allow for the ratio of ratios plots. 
     sampleCombos = list(combinations_with_replacement(samples, 2))
     labelCombos = list(combinations_with_replacement(labels, 2))
     fullCombos = list(product(sampleCombos,labelCombos))
     for metric in metrics:
+        ratios[metric] = {}
         for combo in fullCombos:
             sampleNum,sampleDen = combo[0][0],combo[0][1]
             labelNum,labelDen   = combo[1][0],combo[1][1]
 
             #kill undesirable combos
             if (sampleNum == sampleDen and labelNum == labelDen): continue
-            #process remainer for case of list or not            
-
+            #process remainer for case of list or not
             if (type(sampleDen) == str):
-                print(f"Plotting {metric}: {sampleNum} | {sampleDen} | {labelNum} | {labelDen}")
-                plot_ratio(results, metric, (sampleNum,labelNum), (sampleDen,labelDen), 0)
-                
+                # print(f"Plotting1 {metric}: {sampleNum} | {sampleDen} | {labelNum} | {labelDen}")
+                ratios[metric][sampleDen] = plot_ratio(results, metric, (sampleNum,labelNum), (sampleDen,labelDen))
             else:
                 if (type(sampleNum) == str):
                     for compSample in sampleDen:
-                            print(f"Plotting {metric}: {sampleNum} | {compSample} | {labelNum} | {labelDen}")
-                            plot_ratio(results, metric, (sampleNum,labelNum), (compSample,labelDen), 0)
+                            # print(f"Plotting2 {metric}: {sampleNum} | {compSample} | {labelNum} | {labelDen}")
+                            plot_ratio(results, metric, (sampleNum,labelNum), (compSample,labelDen))
                 else:
                     for compSample in sampleNum:
-                        print(f"Plotting {metric}: {compSample} | {compSample} | {labelNum} | {labelDen}")
-                        plot_ratio(results, metric, (compSample,labelNum), (compSample,labelDen), 0)
+                        # print(f"Plotting3 {metric}: {compSample} | {compSample} | {labelNum} | {labelDen}")
+                        ratiosTemp = plot_ratio(results, metric, (compSample,labelNum), (compSample,labelDen))
+                        rofR(*ratios[metric].values(), ratiosTemp, metric, *ratios[metric].keys(), compSample)
 
 
-    # plot_hist_ratio(results, "bestFit_r95", (samples[0],"true"), (samples[0],"pred"),0)
+    # plot_hist_ratio(results, "maxELayer", (samples[0],"true"), (samples[0],"pred"),0)
+
 
     # print(f"Plotting energy_res {samples[0]}")
     # plot_energy_resolution(results[samples[0]], samples[0])
@@ -409,7 +484,6 @@ def main():
     #         print(f"Plotting energy_res {sample}")
     #         plot_energy_resolution(results[sample], sample)
             
-
     
 if __name__ == '__main__':
     main()

@@ -98,7 +98,12 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     plt.close()
     return
 
-
+#=================================================================================================
+#=================================================================================================
+#=================================================================================================
+#=================================================================================================
+#=================================================================================================
+#=================================================================================================
 
 def plot_ratio(data, metric, numerator, denominator, sig=None):
         
@@ -110,37 +115,51 @@ def plot_ratio(data, metric, numerator, denominator, sig=None):
     avg = np.mean([np.mean(data1), np.mean(data2)]) # Plots center of both hists
     std = np.mean([np.std(data1),np.std(data2)])
 
-    histy1, histx1 = np.histogram(data1, bins = formatText["bins"], range = [formatText["lower"], formatText["upper"]])
-    histy2, histx2 = np.histogram(data2, bins = formatText["bins"], range = [formatText["lower"], formatText["upper"]])
-    hist1err = np.sqrt(histy1)
-    hist2err = np.sqrt(histy2)
+    # histy1, histx1 = np.histogram(data1, bins = formatText["bins"], range = [formatText["lower"], formatText["upper"]])
+    # histy2, histx2 = np.histogram(data2, bins = formatText["bins"], range = [formatText["lower"], formatText["upper"]])
+    
 
 
     fig, axs = plt.subplots(nrows=2, figsize=(10,8), sharex=True, gridspec_kw={"hspace":0,"height_ratios":[3,1]})
     
-    axs[0].bar(histx1[1:], histy1, width=(formatText["upper"]-formatText["lower"])/formatText["bins"], 
-                yerr = hist1err, align = "edge", color="blue", ecolor="blue", fill = False,
-                label = f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}")
-    axs[0].bar(histx2[1:], histy2, width=(formatText["upper"]-formatText["lower"])/formatText["bins"], 
-                yerr = hist2err, align = "edge", color="orange", ecolor="orange", fill = False,
-                label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted")
+    # axs[0].bar(histx1[1:], histy1, width=(formatText["upper"]-formatText["lower"])/formatText["bins"], 
+    #             yerr = hist1err, align = "edge", color="blue", ecolor="blue", fill = False,
+    #             label = f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}")
+    # axs[0].bar(histx2[1:], histy2, width=(formatText["upper"]-formatText["lower"])/formatText["bins"], 
+    #             yerr = hist2err, align = "edge", color="orange", ecolor="orange", fill = False,
+    #             label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted")
 
 
     #Top plot
-    # histy1, histx1,_ = axs[0].hist(data1, bins = formatText["bins"], histtype="step",
-    #                             range = [formatText["lower"],formatText["upper"]],
-    #                             label = f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}")
-    # histy2, histx2,_ = axs[0].hist(data2, bins = formatText["bins"], histtype="step",
-    #                             range = [formatText["lower"],formatText["upper"]],
-    #                             label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted")
+    histy1, histx1,_ = axs[0].hist(data1, bins = formatText["bins"], histtype="step",
+                                range = [formatText["lower"],formatText["upper"]],
+                                label = f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}",
+                                color="blue")
+    histy2, histx2,_ = axs[0].hist(data2, bins = formatText["bins"], histtype="step",
+                                range = [formatText["lower"],formatText["upper"]],
+                                label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted",
+                                color="orange")
+
+    #histErrors
+    x_centers = np.asarray( [(x + histx1[i - 1])/2 for i, x in enumerate(histx1) if i > 0] )
+    hist1err = np.sqrt(histy1)
+    hist2err = np.sqrt(histy2)
+
+    axs[0].errorbar(x_centers, histy1, hist1err, color="blue", ls="none")
+    axs[0].errorbar(x_centers, histy2, hist2err, color="orange", ls="none")
 
     #Ratio plot
-    ratiox = np.asarray( [(x + histx1[i - 1])/2 for i, x in enumerate(histx1) if i > 0] )
+    ratiox = x_centers
     ratioy = np.asarray( [histy1[i]/histy2[i] if histy1[i] != 0 and histy2[i] != 0 else -1 for i in range(len(histy1))] ) #This is how its always meant to be
     #hist output and division is always >= 0 so use -1 as filter flag
     ratiox = ratiox[ratioy!=-1]
+    hist1err = hist1err[ratioy!=-1]
+    hist2err = hist2err[ratioy!=-1] 
     ratioy = ratioy[ratioy!=-1]
+    ratioerr = (ratioy * np.sqrt(hist1err**-1 + hist2err**-1))
+    
     axs[1].scatter(ratiox,ratioy, color="black")
+    axs[1].errorbar(ratiox,ratioy, ratioerr, color="black", ls="none")
     axs[1].axhline(y=1, linestyle="--", linewidth="1", color="black")
 
     #Format
@@ -214,9 +233,9 @@ def main():
     results = {}
     results["nominal"] = {"bestFit_r95_true": np.random.normal(6.2,0.5,1000),
                           "bestFit_r95_pred": np.random.normal(6,0.5,1000)}
-    plot_hist_ratio(results, "bestFit_r95", ("nominal","true"), ("nominal","pred"))
+    # plot_hist_ratio(results, "bestFit_r95", ("nominal","true"), ("nominal","pred"))
     ratio1 = plot_ratio(results, "bestFit_r95", ("nominal","true"), ("nominal","pred"))
-    # ratio2 = plot_ratio(results, "bestFit_r95", ("nominal","pred"), ("nominal","true"))
+    ratio2 = plot_ratio(results, "bestFit_r95", ("nominal","pred"), ("nominal","true"))
     # rofR(ratio1,ratio2, "bestFit_r95", (("nominal","true"), ("nominal","pred")), (("nominal","pred"), ("nominal","true")) )
 
 if __name__=="__main__":

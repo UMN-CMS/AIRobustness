@@ -1,5 +1,3 @@
-import numpy as np
-
 def default_format():
     formatText = {
         "title":"Hist Ratio",
@@ -20,16 +18,14 @@ def plot_labels_select(metric, numerator, denominator):
     sampleDen, labelDen = denominator[0], denominator[1]
     
     formatText = {}
-    formatText["title"] = get_title(metric, sampleNum, sampleDen)
+    formatText["title"]  = get_title(metric, sampleNum, sampleDen)
     formatText["x_axis"] = get_x_axis(metric)
     formatText["y_axis"] = "Ratio"
     formatText["label1"] = get_label(metric, sampleNum, sampleDen, labelNum)
     formatText["label2"] = get_label(metric, sampleDen, sampleNum, labelDen)
-    formatText["saveas"] = get_saveName(metric, sampleNum, sampleDen, labelNum)
-    formatText["bins"] = get_bins(metric)
-    formatText["upper"] = get_upper(metric)
-    formatText["lower"] = get_lower(metric)
-    formatText["sig"] = None
+    formatText["saveas"] = get_saveName(metric, sampleNum, sampleDen, labelNum, labelDen)
+    formatText["lower"], formatText["upper"], formatText["bins"] = get_range(metric, sampleNum)
+    formatText["sig"]    = None
 
     return formatText
 
@@ -116,59 +112,86 @@ def get_label(metric, sample, sampleCompare, label):
 
     return formatLabel
 
-def get_saveName(metric, sample1, sample2, label1):
+def get_saveName(metric, sample1, sample2, label1, label2):
     saveas = metric
     
     if sample1 != sample2:
-        saveas += f"_{label1}_{sample1}{sample2}"
+        if label1 == label2:
+            saveas += f"_{label1}s_{sample1}{sample2}"
+        else:
+            saveas += f"_{label1}{label2}_{sample1}{sample2}"
     else:
         saveas += f"_{sample1}"
     
     saveas += ".png"
     return saveas
 
-def get_bins(metric):
-    # in general I want some bin number between 50 and 100 but must be aligned to the integers 
-    # so the difference must be a multiple of the divisor to get it close to 100 
-    # this is kinda gross because it likely wont scale when we start getting different metrics but for now this will have to do
-    # the sigma method seems a good alternative but maybe we can scale it to account for the asymmetric spread
-    if metric == "bestFit_r95" : return 70
-    elif metric == "bestFit_r68" : return 70
-    elif metric == "coe_layers" : return 50
-    elif metric == "longitudinal_95" : return 90
-    elif metric == "longitudinal_68" : return 88
-    elif metric == "chi2" : return 90
-    elif metric == "radial_68" : return 90
-    elif metric == "radial_95" : return 90
-    elif metric == "abs_dists" : return 80
-    elif metric == "avg_weighted_dist" : return 80
-    elif metric == "firstLayer" : return 50
-    elif metric == "maxELayer" : return 50
+def get_range(metric, sample):
     
-def get_upper(metric):
-    if metric == "bestFit_r95" : return 9
-    elif metric == "bestFit_r68" : return 2.2
-    elif metric == "coe_layers" : return 50
-    elif metric == "longitudinal_95" : return 18
-    elif metric == "longitudinal_68" : return 9.5
-    elif metric == "chi2" : return 55
-    elif metric == "radial_68" : return 3.75
-    elif metric == "radial_95" : return 9.5
-    elif metric == "abs_dists" : return 2250
-    elif metric == "avg_weighted_dist" : return 2.75
-    elif metric == "firstLayer" : return 50
-    elif metric == "maxELayer" : return 50
-      
-def get_lower(metric):
-    if metric == "bestFit_r95" : return 3
-    elif metric == "bestFit_r68" : return 0.7
-    elif metric == "coe_layers" : return 0
-    elif metric == "longitudinal_95" : return 9
-    elif metric == "longitudinal_68" : return 4
-    elif metric == "chi2" : return 10
-    elif metric == "radial_68" : return 1.25
-    elif metric == "radial_95" : return 4.5
-    elif metric == "abs_dists" : return 1050
-    elif metric == "avg_weighted_dist" : return 1.25
-    elif metric == "firstLayer" : return 0
-    elif metric == "maxELayer" : return 0
+    if sample in ["nominal","FTFP","singlePhotonLayer9","singlePhotonLayer8-9-10","singlePhotonZShift"]:
+        return {
+            "bestFit_r95":       (3, 9, 70),
+            "bestFit_r68":       (0.7, 2.2, 70),
+            "longitudinal_95":   (9, 18, 90),
+            "longitudinal_68":   (4, 9.5, 88),
+            "chi2":              (10, 55, 90),
+            "radial_68":         (1.25, 3.75, 90),
+            "radial_95":         (4.5, 9.5, 90),
+            "abs_dists":         (1050, 2250, 80),
+            "avg_weighted_dist": (1.25, 2.75, 80),
+            "firstLayer":        (0, 50, 50),
+            "maxELayer":         (0, 50, 50),
+            "coe_layers":        (0, 50, 50),
+        }[metric]
+    elif sample in ["PionE50", "PionE50Layer29", "PionE50Neighbors"]:
+        return {
+            "bestFit_r95":       (0, 100, 100),
+            "bestFit_r68":       (0, 40, 80),
+            "longitudinal_95":   (0, 140, 70),
+            "longitudinal_68":   (0, 70, 70),
+            "chi2":              (0, 350, 70),
+            "radial_68":         (0, 30, 60),
+            "radial_95":         (0, 90, 90),
+            "abs_dists":         (0, 7000, 80),
+            "avg_weighted_dist": (0, 25, 75),
+            "firstLayer":        (0, 50, 50),
+            "maxELayer":         (0, 50, 50),
+            "coe_layers":        (0, 50, 50),
+        }[metric]
+    elif sample in ["KaonE50", "KaonE50Layer29", "KaonE50Neighbors"]:
+        return {
+            "bestFit_r95":       (0, 100, 100),
+            "bestFit_r68":       (0, 30, 90),
+            "longitudinal_95":   (0, 140, 70),
+            "longitudinal_68":   (0, 70, 70),
+            "chi2":              (0, 350, 70),
+            "radial_68":         (0, 30, 60),
+            "radial_95":         (0, 100, 100),
+            "abs_dists":         (0, 7000, 80),
+            "avg_weighted_dist": (0, 25, 75),
+            "firstLayer":        (0, 50, 50),
+            "maxELayer":         (0, 50, 50),
+            "coe_layers":        (0, 50, 50),
+        }[metric]
+    elif sample in ["TauE50", "TauE50Layer8", "TauE50Neighbors"]:
+        return {
+            "bestFit_r95":       (0, 80, 80),
+            "bestFit_r68":       (0, 25, 75),
+            "longitudinal_95":   (0, 130, 65),
+            "longitudinal_68":   (0, 70, 70),
+            "chi2":              (0, 300, 60),
+            "radial_68":         (0, 30, 60),
+            "radial_95":         (0, 80, 80),
+            "abs_dists":         (0, 6000, 80),
+            "avg_weighted_dist": (0, 25, 75),
+            "firstLayer":        (0, 50, 50),
+            "maxELayer":         (0, 50, 50),
+            "coe_layers":        (0, 50, 50),
+        }[metric]
+
+"""
+                                                                                    ARM
+Python --interpreted-by-> C -compiled-to-> ASSEMBLY --runs-on-> (x86 frontend -> uOp cache -> uOp CPU) -GIZMOS> comp
+
+
+"""
