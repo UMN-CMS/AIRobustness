@@ -338,7 +338,7 @@ def plot_ratio(data, metric, numerator, denominator, sig=None):
     hist1err = hist1err[ratioy!=-1]
     hist2err = hist2err[ratioy!=-1] 
     ratioy = ratioy[ratioy!=-1]
-    ratioerr = (ratioy * np.sqrt(hist1err**-1 + hist2err**-1))
+    ratioerr = (ratioy * np.sqrt(hist1err**-2 + hist2err**-2))
 
 
     axs[1].scatter(ratiox,ratioy, color="black")
@@ -403,7 +403,7 @@ def rofR(ratio1, ratio2, metric, ratioName1, ratioName2):
     axs[1].legend()
     axs[0].set_ylim(0,2.4)
     axs[1].set_ylim(0,2.4)
-    # axs[2].set_ylim(0,10)
+    axs[2].set_ylim(0,5)
     
     fig.savefig(f"rofR_{metric}_{ratioName1}_{ratioName2}.png")
 
