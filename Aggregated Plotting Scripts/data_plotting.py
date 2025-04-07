@@ -1,15 +1,15 @@
 import matplotlib.pyplot as plt
-import glob
+# import glob
 import hist
 from tqdm import tqdm
 import numpy as np
-import pickle
+# import pickle
 from itertools import product, combinations, combinations_with_replacement
 
 import data_processing as dp
 import plot_labels
 
-def aggregate_data(sample, layer_positions, file_limit=1000):
+def aggregate_data(sample, particleEnergy, species, layer_positions, file_limit=1000):
     """Aggregate all necessary data from the files."""
     
     results = {
@@ -44,17 +44,26 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
         }
     }
 
+    #ZShift encorded in sample name
+    print(sample)
+    if "ZShift" in sample:
+        print(f"Yeah, we're shifting now")
+        if sample.split("_")[-1][-2:] == "cm":
+            layer_positions += float(sample.split("_")[-1][0:-2])
+        # if sample.split("_")[-1][-2:] == "mm":
+        #     layer_positions += sample.split("_")[-1][0:-2] / 10
+
     #load in preprocessed sample data. Use process_pkl to processa given sample
-    data_all, score_noise_filter_all, pass_noise_filter_all, out_gravent_all = dp.load_data_bulk(sample)
+    data_all, pass_noise_filter_all, out_gravent_all = dp.load_data_bulk(sample, particleEnergy, species)
 
     for file_i in tqdm(range(file_limit)):
         data = data_all[file_i]
-        score_noise_filter = score_noise_filter_all[file_i]
+        # score_noise_filter = score_noise_filter_all[file_i]
         pass_noise_filter = pass_noise_filter_all[file_i]
         out_gravnet = out_gravent_all[file_i]
 
         true_energies, true_clusters, xpos, ypos, zpos = dp.process_data(data)
-        final_pred_hits = dp.process_gravnet(score_noise_filter, pass_noise_filter, out_gravnet)
+        final_pred_hits = dp.process_gravnet(pass_noise_filter, out_gravnet)
 
         #process inputs for noise
         x_true = xpos[true_clusters==1]
@@ -76,7 +85,7 @@ def aggregate_data(sample, layer_positions, file_limit=1000):
         #     results["skips"].append(file_i)
         #     continue
 
-        dp.accumulate_histograms(results["hist_data"], data, score_noise_filter, pass_noise_filter, out_gravnet)
+        dp.accumulate_histograms(results["hist_data"], data, pass_noise_filter, out_gravnet)
 
 
         # Radial Shower Spread calculations
@@ -267,7 +276,7 @@ def plot_hist_ratio(data, metric, numerator, denominator, sig=None):
     plt.close()
     return
 
-def plot_ratio(data, metric, numerator, denominator, sig=None):
+def plot_ratio(data, metric, numerator, denominator, species, sig=None):
     '''
     Generic plotting utility for making histogram ratio comparison plots.
     hist1 and hist2 must be 1d arrays of data to be turned into histograms
@@ -277,7 +286,7 @@ def plot_ratio(data, metric, numerator, denominator, sig=None):
     
     data1 = data[numerator[0]][f"{metric}_{numerator[1]}"]
     data2 = data[denominator[0]][f"{metric}_{denominator[1]}"]
-    formatText = plot_labels.plot_labels_select(metric, numerator, denominator)
+    formatText = plot_labels.plot_labels_select(metric, numerator, denominator, species)
 
     # binning
     avg = np.mean([np.mean(data1), np.mean(data2)]) # Plots center of both hists
@@ -314,11 +323,11 @@ def plot_ratio(data, metric, numerator, denominator, sig=None):
 
     #Top plot
     histy1, histx1,_ = axs[0].hist(data1, bins = bins, histtype="step",
-                                range = [lower,upper],
+                                range = [lower,upper], alpha=0.80,
                                 label = f"{formatText['label1']}, $\mu$ {np.mean(data1):.2f}, $\sigma$ {np.std(data1):.2f}",
                                 color="blue")
     histy2, histx2,_ = axs[0].hist(data2, bins = bins, histtype="step",
-                                range = [lower,upper],
+                                range = [lower,upper], alpha=0.80,
                                 label = f"{formatText['label2']}, $\mu$ {np.mean(data2):.2f}, $\sigma$ {np.std(data2):.2f}\n{len(data1)} events plotted",
                                 color="orange")
 
@@ -360,7 +369,7 @@ def plot_ratio(data, metric, numerator, denominator, sig=None):
             
     return (ratiox, ratioy, ratioerr)
 
-def rofR(ratio1, ratio2, metric, ratioName1, ratioName2):
+def rofR(ratio1, ratio2, metric, ratioName1, ratioName2, species):
     ratio1x = ratio1[0]
     ratio1y = ratio1[1]
     ratio1err = ratio1[2]
@@ -369,14 +378,14 @@ def rofR(ratio1, ratio2, metric, ratioName1, ratioName2):
     ratio2err = ratio2[2]
 
     fig, axs = plt.subplots(nrows=3, figsize=(10,8), sharex=True, gridspec_kw={"hspace":0})
-    formatText = plot_labels.plot_labels_select(metric, (ratioName1,"true"), (ratioName1,"pred"))
+    formatText = plot_labels.plot_labels_select(metric, (ratioName1,"true"), (ratioName1,"pred"), species)
 
     axs[0].scatter(ratio1x,ratio1y, color="black",
-                   label=f"{metric}: {ratioName1}_true over {ratioName1}_pred")
+                   label=f"{ratioName1} true/pred")
     axs[0].errorbar(ratio1x, ratio1y, ratio1err, color="black", ls="none")
     axs[0].axhline(y=1, linestyle="--", linewidth="1", color="black")
     axs[1].scatter(ratio2x,ratio2y, color="black",
-                   label=f"{metric}: {ratioName2}_true over {ratioName2}_pred")
+                   label=f"{ratioName2} true/pred")
     axs[1].errorbar(ratio2x, ratio2y, ratio2err, color="black", ls="none")
     axs[1].axhline(y=1, linestyle="--", linewidth="1", color="black")
 
@@ -394,8 +403,8 @@ def rofR(ratio1, ratio2, metric, ratioName1, ratioName2):
     axs[2].errorbar(shared,ratioratio,ratioerrs, color="black", ls="none")
     axs[2].axhline(y=1, linestyle="--", linewidth="1", color="black")
 
-    axs[0].set_title(f"Ratio of Ratios {metric}")
-    axs[1].set_xlabel(formatText["x_axis"])
+    axs[0].set_title(f"Ratio of Ratios: {formatText['title']}")
+    axs[2].set_xlabel(formatText["x_axis"])
     axs[0].set_ylabel("Ratio1")
     axs[1].set_ylabel("Ratio2")
     axs[2].set_ylabel("Ratio1/Ratio2")
@@ -428,9 +437,28 @@ def main():
     # SampleBase is compared against all given compSamples.
     # Minimum example is just sampleBase.
     # No direct comparisons between compSamples, only sampleBase (base dataset generally)
-    # samples = ["PionE50"]
-    samples = ["nominal",["FTFP","singlePhotonLayer9", "singlePhotonLayer8-9-10"]]
-    # samples = ["PionE50",["PionE50Layer29"]]
+
+    species = "Tau"
+    particleEnergy = "e50"
+    samples = ["nominal",["BirkC1_0p006_25-02-04",
+                          "EFTFP_1-25_25-02-04",
+                          "EFTFP_20-40_EmaxBERT_20_20pi_25-02-04",
+                          "EFTFP_3-15_25-02-04",
+                          "EFTFP_3-35_25-02-04",
+                          "EFTFP_5-25_25-02-04",
+                          "EmaxBERT_3_pi6_25-02-04",
+                          "EmaxBERT_9_18pi_25-02-04",
+                          "EminQGSP_20_25-02-04",
+                          "EminQGSP_6_25-02-04",
+                          "FTFP_BERT_25-02-04",
+                          "FTFP_BERT_EMM_25-02-04",
+                          "FTFP_BERT_EMY_25-02-04",
+                          "FTFP_BERT_EMZ_25-02-04",
+                          "MELNRemoved",
+                          "MELremoved",
+                          "QGSP_FTFP_BERT_EML_25-02-04",
+                          "zShift_1cm"
+                          ]]
     labels = ["true", "pred"]
     results = {}
     ratios = {}
@@ -439,14 +467,17 @@ def main():
         print("What did you even expect to happen? Invalid input set.")
         return
     
-    results[samples[0]] = aggregate_data(samples[0], layer_positions, file_limit)
+    results[samples[0]] = aggregate_data(samples[0], particleEnergy, species, layer_positions, file_limit)
     if len(samples) > 1:
         for sample in samples[1]:
-            results[sample] = aggregate_data(sample, layer_positions, file_limit)
+            results[sample] = aggregate_data(sample, particleEnergy, species, layer_positions, file_limit)
 
 
     # produce the set of graph combinations
+    # 1. sampleVar vs base true/true
+    # 2. sampleVar vs base pred/pred
     # Note, Choosing sig=0 will not allow for the ratio of ratios plots. 
+
     sampleCombos = list(combinations_with_replacement(samples, 2))
     labelCombos = list(combinations_with_replacement(labels, 2))
     fullCombos = list(product(sampleCombos,labelCombos))
@@ -458,20 +489,21 @@ def main():
 
             #kill undesirable combos
             if (sampleNum == sampleDen and labelNum == labelDen): continue
+            if (sampleNum != sampleDen and labelNum != labelDen): continue
             #process remainer for case of list or not
             if (type(sampleDen) == str):
                 # print(f"Plotting1 {metric}: {sampleNum} | {sampleDen} | {labelNum} | {labelDen}")
-                ratios[metric][sampleDen] = plot_ratio(results, metric, (sampleNum,labelNum), (sampleDen,labelDen))
+                ratios[metric][sampleDen] = plot_ratio(results, metric, (sampleNum,labelNum), (sampleDen,labelDen), species)
             else:
                 if (type(sampleNum) == str):
                     for compSample in sampleDen:
                             # print(f"Plotting2 {metric}: {sampleNum} | {compSample} | {labelNum} | {labelDen}")
-                            plot_ratio(results, metric, (sampleNum,labelNum), (compSample,labelDen))
+                            plot_ratio(results, metric, (sampleNum,labelNum), (compSample,labelDen),species)
                 else:
                     for compSample in sampleNum:
                         # print(f"Plotting3 {metric}: {compSample} | {compSample} | {labelNum} | {labelDen}")
-                        ratiosTemp = plot_ratio(results, metric, (compSample,labelNum), (compSample,labelDen))
-                        rofR(*ratios[metric].values(), ratiosTemp, metric, *ratios[metric].keys(), compSample)
+                        ratiosTemp = plot_ratio(results, metric, (compSample,labelNum), (compSample,labelDen), species)
+                        rofR(ratiosTemp, *ratios[metric].values(), metric, compSample, *ratios[metric].keys(), species) #ratio2 should be the base sample
 
 
     # plot_hist_ratio(results, "maxELayer", (samples[0],"true"), (samples[0],"pred"),0)

@@ -1,39 +1,50 @@
-import numpy as np
 import glob
 from tqdm import tqdm
 import pickle
 import data_processing as dp
-
+import os
 
 '''
-Run this script for a given file path to convert the n number of pickles in the path 
-into a single file that can be dealt with as one unit. This removes overhead of loading multiple files.
+Converts N events into the data, score_noise_filter, pass_noise_filter, out_gravnet files each containing N entries.
+Helps to improve loading times in data_plotting.py  
+Make sure there is a directory called pickles, update file_pattern and sample, then run
 '''
+samples = [x.split("/")[-1] for x in glob.glob("/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/*25-02-04")]
 
-# file_pattern = "/users/6/vadna042/hgcalml/hgcal_minimal_eval_example/output/singlePhotonOut9/*.pkl"
-file_pattern = "/home/nstrobbe/shared/AIRobust/modifiedeventspkl/singlePhoton24-04-01_E50_zshifted1-0cm/*.pkl"
-file_limit = 1000
-files = glob.glob(file_pattern)[:file_limit]
-data, score_noise_filter, pass_noise_filter, out_gravnet = [], [], [], []
+species = ["Tau","Kaon","Pion","Photon"]
 
-# extract data, each length is {file_limit}
-for file in tqdm(files):
-    # temp_load_data = np.load("/users/6/vadna042/airobustness/AIRobustness/Aggregated Plotting Scripts/NANOAOD_singlePhoton_50-50GeV_1_000_pos_ZMODIFIED3.npz", allow_pickle=True)
-    temp_load_data = dp.load_data(file) #4 returns, all tensors
-    data.append(temp_load_data[0])
-    score_noise_filter.append(temp_load_data[1])
-    pass_noise_filter.append(temp_load_data[2])
-    out_gravnet.append(temp_load_data[3])
+for specie in species:
+    for sample in samples:
 
-del files, file_pattern
+        file_pattern = f"/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/{sample}/NANOAOD_single{specie}*.pkl"
+        
+        file_limit = 1000
+        files = glob.glob(file_pattern)[:file_limit]
+        data, score_noise_filter, pass_noise_filter, out_gravnet = [], [], [], []
 
-sample = "singlePhotonZShift"
+        for file in tqdm(files):
+            # temp_load_data = np.load("/users/6/vadna042/airobustness/AIRobustness/Aggregated Plotting Scripts/NANOAOD_singlePhoton_50-50GeV_1_000_pos_ZMODIFIED3.npz", allow_pickle=True)
+            temp_load_data = dp.load_data(file) #4 returns, all tensors
+            data.append(temp_load_data[0])
+            score_noise_filter.append(temp_load_data[1])
+            pass_noise_filter.append(temp_load_data[2])
+            out_gravnet.append(temp_load_data[3])
 
-with open(f"pickles/{sample}/{sample}_data.pkl", 'wb') as f:
-    pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-with open(f"pickles/{sample}/{sample}_score_noise_filter.pkl", 'wb') as f:
-    pickle.dump(score_noise_filter, f, protocol=pickle.HIGHEST_PROTOCOL)
-with open(f"pickles/{sample}/{sample}_pass_noise_filter.pkl", 'wb') as f:
-    pickle.dump(pass_noise_filter, f, protocol=pickle.HIGHEST_PROTOCOL)
-with open(f"pickles/{sample}/{sample}_out_gravnet.pkl", 'wb') as f:
-    pickle.dump(out_gravnet, f, protocol=pickle.HIGHEST_PROTOCOL)
+        del files, file, file_pattern, file_limit
+
+        if not os.path.isdir(f"pickles/{specie}/e50/{sample}"):
+            os.makedirs(f"pickles/{specie}/e50/{sample}")
+
+        print(f"copying to {specie}/e50/{sample}")
+        with open(f"pickles/{specie}/e50/{sample}/data.pkl", 'wb') as f:
+            pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f"pickles/{specie}/e50/{sample}/score_noise_filter.pkl", 'wb') as f:
+            pickle.dump(score_noise_filter, f, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f"pickles/{specie}/e50/{sample}/pass_noise_filter.pkl", 'wb') as f:
+            pickle.dump(pass_noise_filter, f, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f"pickles/{specie}/e50/{sample}/out_gravnet.pkl", 'wb') as f:
+            pickle.dump(out_gravnet, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+        del data, score_noise_filter, pass_noise_filter, out_gravnet, temp_load_data
+
+        

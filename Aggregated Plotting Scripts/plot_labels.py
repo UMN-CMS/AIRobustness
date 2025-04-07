@@ -13,7 +13,7 @@ def default_format():
     }
     return formatText
 
-def plot_labels_select(metric, numerator, denominator):
+def plot_labels_select(metric, numerator, denominator, species):
     sampleNum, labelNum = numerator[0], numerator[1]
     sampleDen, labelDen = denominator[0], denominator[1]
     
@@ -24,7 +24,7 @@ def plot_labels_select(metric, numerator, denominator):
     formatText["label1"] = get_label(metric, sampleNum, sampleDen, labelNum)
     formatText["label2"] = get_label(metric, sampleDen, sampleNum, labelDen)
     formatText["saveas"] = get_saveName(metric, sampleNum, sampleDen, labelNum, labelDen)
-    formatText["lower"], formatText["upper"], formatText["bins"] = get_range(metric, sampleNum)
+    formatText["lower"], formatText["upper"], formatText["bins"] = get_range(metric, sampleNum, species)
     formatText["sig"]    = None
 
     return formatText
@@ -126,9 +126,9 @@ def get_saveName(metric, sample1, sample2, label1, label2):
     saveas += ".png"
     return saveas
 
-def get_range(metric, sample):
+def get_range(metric, sample, species):
     
-    if sample in ["nominal","FTFP","singlePhotonLayer9","singlePhotonLayer8-9-10","singlePhotonZShift"]:
+    if species == "Photon":
         return {
             "bestFit_r95":       (3, 9, 70),
             "bestFit_r68":       (0.7, 2.2, 70),
@@ -143,55 +143,50 @@ def get_range(metric, sample):
             "maxELayer":         (0, 50, 50),
             "coe_layers":        (0, 50, 50),
         }[metric]
-    elif sample in ["PionE50", "PionE50Layer29", "PionE50Neighbors"]:
+    elif species == "Pion":
         return {
-            "bestFit_r95":       (0, 100, 100),
-            "bestFit_r68":       (0, 40, 80),
-            "longitudinal_95":   (0, 140, 70),
-            "longitudinal_68":   (0, 70, 70),
-            "chi2":              (0, 350, 70),
-            "radial_68":         (0, 30, 60),
-            "radial_95":         (0, 90, 90),
-            "abs_dists":         (0, 7000, 80),
-            "avg_weighted_dist": (0, 25, 75),
+            "bestFit_r95":       (0, 100, 50),
+            "bestFit_r68":       (0, 40, 40),
+            "longitudinal_95":   (0, 140, 35),
+            "longitudinal_68":   (0, 70, 35),
+            "chi2":              (0, 350, 35),
+            "radial_68":         (0, 30, 30),
+            "radial_95":         (0, 90, 45),
+            "abs_dists":         (0, 7000, 40),
+            "avg_weighted_dist": (0, 25, 50),
             "firstLayer":        (0, 50, 50),
             "maxELayer":         (0, 50, 50),
             "coe_layers":        (0, 50, 50),
         }[metric]
-    elif sample in ["KaonE50", "KaonE50Layer29", "KaonE50Neighbors"]:
+    elif species == "Kaon":
         return {
-            "bestFit_r95":       (0, 100, 100),
-            "bestFit_r68":       (0, 30, 90),
-            "longitudinal_95":   (0, 140, 70),
-            "longitudinal_68":   (0, 70, 70),
-            "chi2":              (0, 350, 70),
-            "radial_68":         (0, 30, 60),
-            "radial_95":         (0, 100, 100),
-            "abs_dists":         (0, 7000, 80),
-            "avg_weighted_dist": (0, 25, 75),
+            "bestFit_r95":       (0, 100, 50),
+            "bestFit_r68":       (0, 30, 45),
+            "longitudinal_95":   (0, 140, 35),
+            "longitudinal_68":   (0, 70, 35),
+            "chi2":              (0, 350, 35),
+            "radial_68":         (0, 30, 30),
+            "radial_95":         (0, 100, 50),
+            "abs_dists":         (0, 7000, 40),
+            "avg_weighted_dist": (0, 25, 50),
             "firstLayer":        (0, 50, 50),
             "maxELayer":         (0, 50, 50),
             "coe_layers":        (0, 50, 50),
         }[metric]
-    elif sample in ["TauE50", "TauE50Layer8", "TauE50Neighbors"]:
+    elif species == "Tau":
         return {
-            "bestFit_r95":       (0, 80, 80),
-            "bestFit_r68":       (0, 25, 75),
-            "longitudinal_95":   (0, 130, 65),
-            "longitudinal_68":   (0, 70, 70),
-            "chi2":              (0, 300, 60),
-            "radial_68":         (0, 30, 60),
-            "radial_95":         (0, 80, 80),
-            "abs_dists":         (0, 6000, 80),
-            "avg_weighted_dist": (0, 25, 75),
+            "bestFit_r95":       (0, 80, 40),
+            "bestFit_r68":       (0, 25, 50),
+            "longitudinal_95":   (0, 140, 35),
+            "longitudinal_68":   (0, 70, 35),
+            "chi2":              (0, 300, 30),
+            "radial_68":         (0, 30, 30),
+            "radial_95":         (0, 80, 40),
+            "abs_dists":         (0, 6000, 40),
+            "avg_weighted_dist": (0, 25, 50),
             "firstLayer":        (0, 50, 50),
             "maxELayer":         (0, 50, 50),
             "coe_layers":        (0, 50, 50),
         }[metric]
 
-"""
-                                                                                    ARM
-Python --interpreted-by-> C -compiled-to-> ASSEMBLY --runs-on-> (x86 frontend -> uOp cache -> uOp CPU) -GIZMOS> comp
 
-
-"""

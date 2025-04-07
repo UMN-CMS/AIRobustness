@@ -13,17 +13,41 @@ def load_data(file_path):
         out_gravnet = pickle.load(f)
     return data, score_noise_filter, pass_noise_filter, out_gravnet
 
-def load_data_bulk(sample):
-    with open(f"pickles/{sample}/{sample}_data.pkl", 'rb') as f:
+def load_data_bulk(sample, particleEnergy, species):
+    with open(f"pickles/{species}/{particleEnergy}/{sample}/data.pkl", 'rb') as f:
         data = pickle.load(f)
-    with open(f"pickles/{sample}/{sample}_score_noise_filter.pkl", 'rb') as f:
-        score_noise_filter = pickle.load(f)
-    with open(f"pickles/{sample}/{sample}_pass_noise_filter.pkl", 'rb') as f:
+    # with open(f"pickles/{sample}/{sample}_score_noise_filter.pkl", 'rb') as f:
+    #     score_noise_filter = pickle.load(f)
+    with open(f"pickles/{species}/{particleEnergy}/{sample}/pass_noise_filter.pkl", 'rb') as f:
         pass_noise_filter = pickle.load(f)
-    with open(f"pickles/{sample}/{sample}_out_gravnet.pkl", 'rb') as f:
+    with open(f"pickles/{species}/{particleEnergy}/{sample}/out_gravnet.pkl", 'rb') as f:
         out_gravent = pickle.load(f)
     
-    return data, score_noise_filter, pass_noise_filter, out_gravent
+    return data, pass_noise_filter, out_gravent
+
+def process_data(data):
+    """Extract relevant information from the data."""
+    true_energies = data.x[:, 0].numpy()
+    true_clusters = data.y.numpy()
+    xpos = data.x[:, 5].numpy()
+    ypos = data.x[:, 6].numpy()
+    zpos = data.x[:, 7].numpy()
+    return true_energies, true_clusters, xpos, ypos, zpos
+
+def process_gravnet(pass_noise_filter, out_gravnet):
+    """Process the network output to predict clusters."""
+    sigmoid = lambda x : (1+np.exp(-x)) ** (-1)
+    beta = np.array(sigmoid(out_gravnet[:, 0]))
+    cluster_space_coords = out_gravnet[:, 1:].numpy()
+    pred_clusters_pnf = get_clustering(beta, cluster_space_coords, threshold_beta=0.2, threshold_dist=0.5)
+    pred_clusters = np.zeros_like(pass_noise_filter, dtype=np.int32)
+    pred_clusters[pass_noise_filter] = pred_clusters_pnf
+    
+    unique, counts = np.unique(pred_clusters, return_counts=True)
+    cluster_counts = dict(zip(unique, counts))
+    final_pred_hits = np.array([cluster if cluster_counts[cluster] >= 100 else -2 for cluster in pred_clusters])
+    
+    return final_pred_hits
 
 def get_clustering(beta, X, threshold_beta=0.2, threshold_dist=0.5):
     """Cluster points based on beta values and distances."""
@@ -42,15 +66,6 @@ def get_clustering(beta, X, threshold_beta=0.2, threshold_dist=0.5):
     
     return clustering
 
-def process_data(data):
-    """Extract relevant information from the data."""
-    true_energies = data.x[:, 0].numpy()
-    true_clusters = data.y.numpy()
-    xpos = data.x[:, 5].numpy()
-    ypos = data.x[:, 6].numpy()
-    zpos = data.x[:, 7].numpy()
-    return true_energies, true_clusters, xpos, ypos, zpos
-
 # Collecting raw data.
 def process_data_matching_hist(data):
     '''
@@ -63,22 +78,7 @@ def process_data_matching_hist(data):
     true_pdgids = data.truth_cluster_props[:, 4].numpy()
     return true_energies, true_clusters, eta_values, true_pdgids
 
-def process_gravnet(score_noise_filter, pass_noise_filter, out_gravnet):
-    """Process the network output to predict clusters."""
-    sigmoid = lambda x : (1+np.exp(-x)) ** (-1)
-    beta = np.array(sigmoid(out_gravnet[:, 0]))
-    cluster_space_coords = out_gravnet[:, 1:].numpy()
-    pred_clusters_pnf = get_clustering(beta, cluster_space_coords, threshold_beta=0.2, threshold_dist=0.5)
-    pred_clusters = np.zeros_like(pass_noise_filter, dtype=np.int32)
-    pred_clusters[pass_noise_filter] = pred_clusters_pnf
-    
-    unique, counts = np.unique(pred_clusters, return_counts=True)
-    cluster_counts = dict(zip(unique, counts))
-    final_pred_hits = np.array([cluster if cluster_counts[cluster] >= 100 else -2 for cluster in pred_clusters])
-    
-    return final_pred_hits
-
-def process_gravnet_matching_hist(score_noise_filter, pass_noise_filter, out_gravnet):
+def process_gravnet_matching_hist(pass_noise_filter, out_gravnet):
     sigmoid = lambda x : (1+np.exp(-x)) ** (-1)
     beta = np.array(sigmoid(out_gravnet[:, 0]))
     cluster_space_coords = out_gravnet[:, 1:].numpy()
@@ -341,9 +341,9 @@ def get_category(truth_ids):
 
 
 # Histogram generator.
-def accumulate_histograms(hist_data, data, score_noise_filter, pass_noise_filter, out_gravnet):
+def accumulate_histograms(hist_data, data, pass_noise_filter, out_gravnet):
     true_energies, true_clusters, eta_values, true_pdgids = process_data_matching_hist(data)
-    pred_clusters = process_gravnet_matching_hist(score_noise_filter, pass_noise_filter, out_gravnet)
+    pred_clusters = process_gravnet_matching_hist(pass_noise_filter, out_gravnet)
     
     i1s, i2s, _ = match(true_clusters, pred_clusters, weights=true_energies)
     matches = group_matching(i1s, i2s)
