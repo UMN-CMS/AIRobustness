@@ -19,6 +19,9 @@ args=parser.parse_args()
 nEvents = args.nEvents
 inputDir = args.input
 tag = args.tag
+outputPath = '../hgcal_minimal_eval_example/output/{}'.format(args.tag)
+
+if not os.path.exists(outputPath): os.makedirs(outputPath)
 
 inputFiles = sorted(glob.glob('{}/*'.format(inputDir)))
 nJobs = math.ceil(len(inputFiles) / nEvents)
