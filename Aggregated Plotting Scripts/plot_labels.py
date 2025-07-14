@@ -13,7 +13,7 @@ def default_format():
     }
     return formatText
 
-def plot_labels_select(metric, numerator, denominator, species):
+def plot_labels_select(metric, numerator, denominator, species, pred_cluter_cutoff):
     sampleNum, labelNum = numerator[0], numerator[1]
     sampleDen, labelDen = denominator[0], denominator[1]
     
@@ -24,7 +24,7 @@ def plot_labels_select(metric, numerator, denominator, species):
     formatText["label1"] = get_label(metric, sampleNum, sampleDen, labelNum)
     formatText["label2"] = get_label(metric, sampleDen, sampleNum, labelDen)
     formatText["saveas"] = get_saveName(metric, sampleNum, sampleDen, labelNum, labelDen)
-    formatText["lower"], formatText["upper"], formatText["bins"] = get_range(metric, sampleNum, species)
+    formatText["lower"], formatText["upper"], formatText["bins"] = get_range(metric, sampleNum, species, pred_cluster_cutoff)
     formatText["sig"]    = None
 
     return formatText
@@ -35,10 +35,16 @@ def get_title(metric, sampleNum, sampleDen):
     else:
         title = f"Comparison ({sampleNum},{sampleDen}) "
 
-    if metric == "bestFit_r95":
+    if metric == "bestFit_r99":
+        title += "BestFit Radius 99"
+    elif metric == "bestFit_r95":
         title += "BestFit Radius 95"
     elif metric == "bestFit_r68":
         title += "BestFit Radius 68"
+    elif metric == "bestFit_r99-95":
+        title += "BestFit Radius 99-95"
+    elif metric == "bestFit_r95-68":
+        title += "BestFit Radius 95-68"
     elif metric == "coe_layers":
         title += "Center of Energy Layer"
     elif metric == "longitudinal_95":
@@ -66,7 +72,7 @@ def get_title(metric, sampleNum, sampleDen):
     return title
 
 def get_x_axis(metric):
-    if metric == "bestFit_r95" or metric == "bestFit_r68" or metric == "radial_68" or metric == "radial_95":
+    if metric == "bestFit_r95" or metric == "bestFit_r68" or metric == "radial_68" or metric == "radial_95" or metric == "bestFit_r99" or metric == "bestFit_r99-95" or metric == "bestFit_r95-68":
         return "Radial Distance (cm)"
     elif metric == "coe_layers" or metric == "firstLayer" or metric == "maxELayer":
         return "Layer Index"
@@ -93,10 +99,16 @@ def get_label(metric, sample, sampleCompare, label):
 
     if metric == "chi2":
         formatLabel += "chi2"
+    elif metric == "bestFit_r99":
+        formatLabel += "99%"
     elif metric == "bestFit_r95" or metric == "radial_95" or metric == "longitudinal_95":
         formatLabel += "95%"
     elif metric == "bestFit_r68" or metric == "radial_68" or metric == "longitudinal_68":
         formatLabel += "68%"
+    elif metric == "bestFit_r99-95":
+        formatLabel += "99-95%"
+    elif metric == "bestFit_r95-68":
+        formatLabel += "95-68%"
     elif metric == "coe_layers":
         formatLabel += "COE layers"
     elif metric == "abs_dists":
@@ -126,67 +138,67 @@ def get_saveName(metric, sample1, sample2, label1, label2):
     saveas += ".png"
     return saveas
 
-def get_range(metric, sample, species):
+def get_range(metric, sample, species, pred_cluster_cutoff):
     
     if species == "Photon":
         return {
-            "bestFit_r95":       (3, 9, 70),
-            "bestFit_r68":       (0.7, 2.2, 70),
-            "longitudinal_95":   (9, 18, 90),
-            "longitudinal_68":   (4, 9.5, 88),
-            "chi2":              (10, 55, 90),
-            "radial_68":         (1.25, 3.75, 90),
-            "radial_95":         (4.5, 9.5, 90),
-            "abs_dists":         (1050, 2250, 80),
-            "avg_weighted_dist": (1.25, 2.75, 80),
-            "firstLayer":        (0, 50, 50),
-            "maxELayer":         (0, 50, 50),
-            "coe_layers":        (0, 50, 50),
-        }[metric]
+            "bestFit_r95":       ((),(3, 9, 70)),
+            "bestFit_r68":       ((),(0.7, 2.2, 70)),
+            "longitudinal_95":   ((),(9, 18, 90)),
+            "longitudinal_68":   ((),(4, 9.5, 88)),
+            "chi2":              ((),(10, 55, 90)),
+            "radial_68":         ((),(1.25, 3.75, 90)),
+            "radial_95":         ((),(4.5, 9.5, 90)),
+            "abs_dists":         ((),(1050, 2250, 80)),
+            "avg_weighted_dist": ((),(1.25, 2.75, 80)),
+            "firstLayer":        ((),(0, 50, 50)),
+            "maxELayer":         ((),(0, 50, 50)),
+            "coe_layers":        ((),(0, 50, 50)),
+        }[metric][int(pred_cluster_cutoff)]
     elif species == "Pion":
         return {
-            "bestFit_r95":       (0, 100, 50),
-            "bestFit_r68":       (0, 40, 40),
-            "longitudinal_95":   (0, 140, 35),
-            "longitudinal_68":   (0, 70, 35),
-            "chi2":              (0, 350, 35),
-            "radial_68":         (0, 30, 30),
-            "radial_95":         (0, 90, 45),
-            "abs_dists":         (0, 7000, 40),
-            "avg_weighted_dist": (0, 25, 50),
-            "firstLayer":        (0, 50, 50),
-            "maxELayer":         (0, 50, 50),
-            "coe_layers":        (0, 50, 50),
-        }[metric]
+            "bestFit_r95":       ((),(0, 100, 50)),
+            "bestFit_r68":       ((),(0, 40, 40)),
+            "longitudinal_95":   ((),(0, 140, 35)),
+            "longitudinal_68":   ((),(0, 70, 35)),
+            "chi2":              ((),(0, 350, 35)),
+            "radial_68":         ((),(0, 30, 30)),
+            "radial_95":         ((),(0, 90, 45)),
+            "abs_dists":         ((),(0, 7000, 40)),
+            "avg_weighted_dist": ((),(0, 25, 50)),
+            "firstLayer":        ((),(0, 50, 50)),
+            "maxELayer":         ((),(0, 50, 50)),
+            "coe_layers":        ((),(0, 50, 50)),
+        }[metric][int(pred_cluster_cutoff)]
     elif species == "Kaon":
         return {
-            "bestFit_r95":       (0, 100, 50),
-            "bestFit_r68":       (0, 30, 45),
-            "longitudinal_95":   (0, 140, 35),
-            "longitudinal_68":   (0, 70, 35),
-            "chi2":              (0, 350, 35),
-            "radial_68":         (0, 30, 30),
-            "radial_95":         (0, 100, 50),
-            "abs_dists":         (0, 7000, 40),
-            "avg_weighted_dist": (0, 25, 50),
-            "firstLayer":        (0, 50, 50),
-            "maxELayer":         (0, 50, 50),
-            "coe_layers":        (0, 50, 50),
-        }[metric]
+            "bestFit_r95":       ((),(0, 100, 50)),
+            "bestFit_r68":       ((),(0, 30, 45)),
+            "longitudinal_95":   ((),(0, 140, 35)),
+            "longitudinal_68":   ((),(0, 70, 35)),
+            "chi2":              ((),(0, 350, 35)),
+            "radial_68":         ((),(0, 30, 30)),
+            "radial_95":         ((),(0, 100, 50)),
+            "abs_dists":         ((),(0, 7000, 40)),
+            "avg_weighted_dist": ((),(0, 25, 50)),
+            "firstLayer":        ((),(0, 50, 50)),
+            "maxELayer":         ((),(0, 50, 50)),
+            "coe_layers":        ((),(0, 50, 50)),
+        }[metric][int(pred_cluster_cutoff)]
     elif species == "Tau":
         return {
-            "bestFit_r95":       (0, 80, 40),
-            "bestFit_r68":       (0, 25, 50),
-            "longitudinal_95":   (0, 140, 35),
-            "longitudinal_68":   (0, 70, 35),
-            "chi2":              (0, 300, 30),
-            "radial_68":         (0, 30, 30),
-            "radial_95":         (0, 80, 40),
-            "abs_dists":         (0, 6000, 40),
-            "avg_weighted_dist": (0, 25, 50),
-            "firstLayer":        (0, 50, 50),
-            "maxELayer":         (0, 50, 50),
-            "coe_layers":        (0, 50, 50),
-        }[metric]
+            "bestFit_r95":       ((),(0, 80, 40)),
+            "bestFit_r68":       ((),(0, 25, 50)),
+            "longitudinal_95":   ((),(0, 140, 35)),
+            "longitudinal_68":   ((),(0, 70, 35)),
+            "chi2":              ((),(0, 300, 30)),
+            "radial_68":         ((),(0, 30, 30)),
+            "radial_95":         ((),(0, 80, 40)),
+            "abs_dists":         ((),(0, 6000, 40)),
+            "avg_weighted_dist": ((),(0, 25, 50)),
+            "firstLayer":        ((),(0, 50, 50)),
+            "maxELayer":         ((),(0, 50, 50)),
+            "coe_layers":        ((),(0, 50, 50)),
+        }[metric][int(pred_cluster_cutoff)]
 
 

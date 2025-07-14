@@ -2,6 +2,180 @@ import pickle
 import numpy as np
 from sklearn.decomposition import PCA
 import plotly.graph_objects as go
+from tqdm import tqdm
+from wpca import WPCA
+from sklearn.linear_model import RANSACRegressor 
+from sklearn.base import BaseEstimator
+from sklearn.utils.validation import check_is_fitted
+
+
+def aggregate_data(sample, particleEnergy, species, layer_positions, file_limit=1000, pred_cluster_cutoff=True, threshold_beta = 0.20):
+    """Aggregate all necessary data from the files."""
+    
+    results = {
+        "skips": [],
+        "radial_68_pred": [],
+        "radial_95_pred": [],
+        "radial_68_true": [],
+        "radial_95_true": [],
+        "coe_layers_pred": [],
+        "coe_layers_true": [],
+        "firstLayer_true" : [],
+        "firstLayer_pred" : [],
+        "maxELayer_true" : [],
+        "maxELayer_pred" : [],
+        "emRatio_true": [],
+        "emRatio_pred": [],
+        "longitudinal_68_pred": [],
+        "longitudinal_95_pred": [],
+        "longitudinal_68_true": [],
+        "longitudinal_95_true": [],
+        "chi2_true": [],
+        "chi2_pred": [],
+        "abs_dists_true": [],
+        "abs_dists_pred": [],
+        "bestFit_r99_true": [],
+        "bestFit_r99_pred": [],
+        "bestFit_r95_true": [],
+        "bestFit_r95_pred": [],
+        "bestFit_r68_true": [],
+        "bestFit_r68_pred": [],
+        "bestFit_r95-68_true": [],
+        "bestFit_r95-68_pred": [],
+        "bestFit_r99-95_true": [],
+        "bestFit_r99-95_pred": [],
+        "avg_weighted_dist_true": [],
+        "avg_weighted_dist_pred": [],
+        "hist_data": {
+            'low_eta': {'EM': [], 'HAD': [], 'MIP': [], 'MIX': []},
+            'high_eta': {'EM': [], 'HAD': [], 'MIP': [], 'MIX': []}
+        }
+    }
+
+    #ZShift encorded in sample name
+    print(sample)
+    if "zShift" in sample:
+        print(f"Yeah, we're shifting now")
+        if sample.split("_")[-1][-2:] == "cm":
+            layer_positions += float(sample.split("_")[-1][0:-2])
+        # if sample.split("_")[-1][-2:] == "mm":
+        #     layer_positions += sample.split("_")[-1][0:-2] / 10
+
+    #load in preprocessed sample data. Use process_pkl to processa given sample
+    data_all, pass_noise_filter_all, out_gravent_all = load_data_bulk(sample, particleEnergy, species)
+
+    for file_i in tqdm(range(file_limit)):
+        data = data_all[file_i]
+        # score_noise_filter = score_noise_filter_all[file_i]
+        pass_noise_filter = pass_noise_filter_all[file_i]
+        out_gravnet = out_gravent_all[file_i]
+
+        true_energies, true_clusters, xpos, ypos, zpos = process_data(data)
+        final_pred_hits = process_gravnet(pass_noise_filter, out_gravnet, pred_cluster_cutoff, threshold_beta)
+
+        #process inputs for noise
+        x_true = xpos[true_clusters==1]
+        y_true = ypos[true_clusters==1]
+        z_true = zpos[true_clusters==1]
+        energy_true = true_energies[true_clusters==1]
+        x_pred = xpos[final_pred_hits > 0]
+        y_pred = ypos[final_pred_hits > 0]
+        z_pred = zpos[final_pred_hits > 0]
+        energy_pred = true_energies[final_pred_hits > 0]
+
+        #apply masking if necessary
+        # x_pred = x_pred[dp.fullmask(x_pred)]
+        # y_pred = y_pred[dp.fullmask(y_pred)]
+        # z_pred = z_pred[dp.fullmask(z_pred)]
+        # energy_pred = energy_pred[dp.fullmask(energy_pred)]
+
+        # if len(z_pred) == 0:
+        #     results["skips"].append(file_i)
+        #     continue
+
+        accumulate_histograms(results["hist_data"], data, pass_noise_filter, out_gravnet)
+
+
+        # Radial Shower Spread calculations
+        valid_pred_indices = np.where((final_pred_hits != -1) & (final_pred_hits != 0) & (final_pred_hits != -2))[0]
+        valid_true_indices = np.where(true_clusters != 0)[0]
+
+        if len(valid_pred_indices) == 0:
+            # print(f"Skipping event {file_i}")
+            results["skips"].append(file_i)
+            continue
+
+
+        if len(valid_pred_indices) > 0:
+            radial_68_pred, radial_95_pred = calculate_radial_shower_spread(valid_pred_indices, xpos, ypos, true_energies)
+            results["radial_68_pred"].append(radial_68_pred)
+            results["radial_95_pred"].append(radial_95_pred)
+
+        if len(valid_true_indices) > 0:
+            radial_68_true, radial_95_true = calculate_radial_shower_spread(valid_true_indices, xpos, ypos, true_energies)
+            results["radial_68_true"].append(radial_68_true)
+            results["radial_95_true"].append(radial_95_true)
+
+        # Longitudinal Shower Spread and COE layers calculations
+        if len(valid_pred_indices) > 0:
+            coe_layer_pred, longitudinal_68_pred, longitudinal_95_pred = calculate_longitudinal_shower_spread(
+                valid_pred_indices, zpos, true_energies, layer_positions)
+            results["coe_layers_pred"].append(coe_layer_pred)
+            results["longitudinal_68_pred"].append(longitudinal_68_pred)
+            results["longitudinal_95_pred"].append(longitudinal_95_pred)
+
+        if len(valid_true_indices) > 0:
+            coe_layer_true, longitudinal_68_true, longitudinal_95_true = calculate_longitudinal_shower_spread(
+                valid_true_indices, zpos, true_energies, layer_positions)
+            results["coe_layers_true"].append(coe_layer_true)
+            results["longitudinal_68_true"].append(longitudinal_68_true)
+            results["longitudinal_95_true"].append(longitudinal_95_true)
+
+        results["firstLayer_true"].append(find_first_hit(z_true,layer_positions))
+        results["firstLayer_pred"].append(find_first_hit(z_pred,layer_positions))
+        results["maxELayer_true"].append(maxELayer(z_true, energy_true, layer_positions))
+        results["maxELayer_pred"].append(maxELayer(z_pred, energy_pred, layer_positions))
+
+        results["emRatio_true"].append(find_emRatio(z_true, energy_true, layer_positions))
+        results["emRatio_pred"].append(find_emRatio(z_pred, energy_pred, layer_positions))
+
+        #=========================================================  
+
+        #PCA based metrics
+        abs_dists_true = calculate_absolute_distances(x_true, y_true, z_true, energy_true)
+        abs_dists_pred = calculate_absolute_distances(x_pred, y_pred, z_pred, energy_pred)
+        
+        results["abs_dists_true"].append(sum(abs_dists_true))
+        results["abs_dists_pred"].append(sum(abs_dists_pred))
+        results["avg_weighted_dist_true"].append(sum(abs_dists_true * energy_true) / sum(energy_true))
+        results["avg_weighted_dist_pred"].append(sum(abs_dists_pred * energy_pred) / sum(energy_pred))
+
+        bestFit_r99_true = e_radius(abs_dists_true, energy_true, 0.99)
+        bestFit_r99_pred = e_radius(abs_dists_pred, energy_pred, 0.99)
+        bestFit_r95_true = e_radius(abs_dists_true, energy_true, 0.95)
+        bestFit_r95_pred = e_radius(abs_dists_pred, energy_pred, 0.95)
+        bestFit_r68_true = e_radius(abs_dists_true, energy_true, 0.68)
+        bestFit_r68_pred = e_radius(abs_dists_pred, energy_pred, 0.68)
+        results["bestFit_r99_true"].append(bestFit_r99_true)
+        results["bestFit_r99_pred"].append(bestFit_r99_pred)
+        results["bestFit_r95_true"].append(bestFit_r95_true)
+        results["bestFit_r95_pred"].append(bestFit_r95_pred)
+        results["bestFit_r68_true"].append(bestFit_r68_true)
+        results["bestFit_r68_pred"].append(bestFit_r68_pred)
+        results["bestFit_r95-68_true"].append(bestFit_r95_true - bestFit_r68_true)
+        results["bestFit_r95-68_pred"].append(bestFit_r95_pred - bestFit_r68_pred)
+        results["bestFit_r99-95_true"].append(bestFit_r99_true - bestFit_r95_true)
+        results["bestFit_r99-95_pred"].append(bestFit_r99_pred - bestFit_r95_pred)
+
+        results["chi2_true"].append(calculate_chi2(abs_dists_true, energy_true))
+        results["chi2_pred"].append(calculate_chi2(abs_dists_pred, energy_pred))
+
+        
+        
+    print(f"{file_limit - len(results['skips'])} / {file_limit} used.")
+
+    return results
+
 
 
 def load_data(file_path):
@@ -34,19 +208,22 @@ def process_data(data):
     zpos = data.x[:, 7].numpy()
     return true_energies, true_clusters, xpos, ypos, zpos
 
-def process_gravnet(pass_noise_filter, out_gravnet):
+def process_gravnet(pass_noise_filter, out_gravnet, cutoff=True, tbeta = 0.20):
     """Process the network output to predict clusters."""
     sigmoid = lambda x : (1+np.exp(-x)) ** (-1)
     beta = np.array(sigmoid(out_gravnet[:, 0]))
     cluster_space_coords = out_gravnet[:, 1:].numpy()
-    pred_clusters_pnf = get_clustering(beta, cluster_space_coords, threshold_beta=0.2, threshold_dist=0.5)
+    pred_clusters_pnf = get_clustering(beta, cluster_space_coords, threshold_beta=tbeta, threshold_dist=0.5)
     pred_clusters = np.zeros_like(pass_noise_filter, dtype=np.int32)
     pred_clusters[pass_noise_filter] = pred_clusters_pnf
     
     unique, counts = np.unique(pred_clusters, return_counts=True)
     cluster_counts = dict(zip(unique, counts))
-    final_pred_hits = np.array([cluster if cluster_counts[cluster] >= 100 else -2 for cluster in pred_clusters])
-    
+    if cutoff:
+        final_pred_hits = np.array([cluster if cluster_counts[cluster] >= 100 else -2 for cluster in pred_clusters])
+    else:
+        final_pred_hits = np.array(pred_clusters)
+
     return final_pred_hits
 
 def get_clustering(beta, X, threshold_beta=0.2, threshold_dist=0.5):
@@ -134,6 +311,19 @@ def maxELayer(z, energy, layer_positions):
     energy_per_layer = [ np.sum(np.asarray(energy)[z_closest_index==i]) for i in range(len(layer_positions)) ]
     return np.argmax(energy_per_layer)
 
+def find_emRatio(z, energy, layer_positions):
+    z_closest_index = np.asarray([np.argmin(np.abs(layer_positions-x)) for x in z ])
+    energy_per_layer = [ np.sum(np.asarray(energy)[z_closest_index==i]) for i in range(len(layer_positions)) ]
+    total_energy = np.sum(energy_per_layer)
+    emEnergy = np.sum(energy_per_layer[0:28])
+    return emEnergy/total_energy
+
+def time_average(time_val):
+    # list(filter(lambda x: x==x, [np.mean(time_true[i][time_true[i] > -1]) for i in range(file_limit)] ))
+    val = np.mean(time_val[time_val > -1])
+    if val != val:
+        return 0
+    return val
 
 def pca(x,y,z, energy = None):
     '''
@@ -153,6 +343,58 @@ def pca(x,y,z, energy = None):
     line = pca.components_
     return datamean[:3], line[0][:3] 
 
+def wpca_make(x,y,z,energy):
+    wpca = WPCA(n_components=1)
+    data = np.array([x,y,z]).T
+    weight = np.asarray([energy,energy,energy]).T
+    wpca.fit(data, weights = weight)
+
+    datamean = wpca.mean_
+    line = wpca.components_
+    return datamean[:3], line[0][:3]
+
+#============================================
+# Ransac Regression 
+#============================================
+
+class Line3D(BaseEstimator):
+    def fit(self, X, y=None, sample_weight=None):
+        # X: Nx3 array of 3D points
+        if X.shape[0] < 2:
+            raise ValueError("Need at least 2 points to fit a 3D line.")
+        
+        center, line = wpca_make(X[:,0],X[:,1],X[:,2],sample_weight)
+        self.origin_ = center
+        self.direction_ = line
+        return self
+
+    def predict(self, X):
+        # Project points onto the line and return closest point on line
+        delta = X - self.origin_
+        projection = np.dot(delta, self.direction_)
+        return self.origin_ + np.outer(projection, self.direction_)
+
+    def score(self, X, y=None):
+        # Negative mean squared orthogonal distance
+        pred = self.predict(X)
+        score = -np.mean(np.linalg.norm(X - pred, axis=1)**2)
+        return score
+    
+def ransac_make(x,y,z,energy):
+    # Exclude bottom and top 2% of hits by energy
+    sorter = np.argsort(energy)
+    bottom = int(np.floor(len(energy)*0.02))
+    top = int(np.floor(len(energy)*0.98))
+    x = x[sorter[bottom:top]]
+    y = y[sorter[bottom:top]]
+    z = z[sorter[bottom:top]]
+    energy = energy[sorter[bottom:top]]
+
+    ransac = RANSACRegressor(Line3D(), residual_threshold=1000, min_samples=int(len(energy)*0.8))
+    ransac.fit(np.array([x,y,z]).T, y=np.zeros((len(energy),3)), sample_weight=energy**2)
+    return ransac.estimator_.origin_, ransac.estimator_.direction_
+
+
 def pcaTrace(x,y,z,energy=None, color="black"):
     '''
     Returns a plotly.go trace of a best fit line for a 3d data set.
@@ -165,7 +407,8 @@ def pcaTrace(x,y,z,energy=None, color="black"):
         x = linepoints[:,0],
         y = linepoints[:,1],
         z = linepoints[:,2],
-        line=dict(color=color, width=2)
+        line=dict(color=color, width=1),
+        marker=dict(size=1,color=color,opacity=0.8)
         )
     return trace
 
@@ -209,7 +452,8 @@ def calculate_absolute_distances(x,y,z,energy=None):
     '''
     Calculates the absolute distance from a 3d best fit line using PCA
     '''
-    point, line = pca(x, y, z, energy)
+    # point, line = wpca_make(x, y, z, energy)
+    point, line = ransac_make(x, y, z, energy)
     pees = np.array([x, y, z]).T
     return point_line_dist(pees, point, line)
 
