@@ -47,7 +47,7 @@ def plot_ratio(data, metric, numerator, denominator, species, sig=None, pred_clu
     
     data1 = data[numerator[0]][f"{metric}_{numerator[1]}"]
     data2 = data[denominator[0]][f"{metric}_{denominator[1]}"]
-    formatText = plot_labels.plot_labels_select(metric, numerator, denominator, species, pred_cluster_cutoff=True)
+    formatText = plot_labels.plot_labels_select(metric, numerator, denominator, species, pred_cluster_cutoff)
 
     # binning
     avg = np.mean([np.mean(data1), np.mean(data2)]) # Plots center of both hists
