@@ -208,7 +208,7 @@ def process_data(data):
     zpos = data.x[:, 7].numpy()
     return true_energies, true_clusters, xpos, ypos, zpos
 
-def process_gravnet(pass_noise_filter, out_gravnet, cutoff=True, tbeta = 0.20):
+def process_gravnet(pass_noise_filter, out_gravnet, cutoff=False, tbeta = 0.20):
     """Process the network output to predict clusters."""
     sigmoid = lambda x : (1+np.exp(-x)) ** (-1)
     beta = np.array(sigmoid(out_gravnet[:, 0]))

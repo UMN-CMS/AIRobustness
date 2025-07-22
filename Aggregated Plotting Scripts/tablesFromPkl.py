@@ -20,8 +20,6 @@ def process_data(data):
 
 def compute_statistics(true_energies, true_clusters, pred_clusters):
     total_energy = np.sum(true_energies)
-    true_signal_energy = np.sum(true_energies[true_clusters > 0])
-    true_noise_energy = np.sum(true_energies[true_clusters <= 0])
     pred_signal_energy = np.sum(true_energies[pred_clusters > 0])
     pred_noise_energy = np.sum(true_energies[pred_clusters <= 0])
     
@@ -59,8 +57,8 @@ def generate_table_1(fractions):
     return
 
 def compute_match_statistics(true_energies, true_clusters, pred_clusters):
-    true_total_energy = np.sum(true_energies[true_clusters > 0])
-    pred_total_energy = np.sum(true_energies[pred_clusters > 0])
+    true_signal_energy = np.sum(true_energies[true_clusters > 0])
+    pred_signal_energy = np.sum(true_energies[pred_clusters > 0])
     
     matched_truth_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters > 0)])
     unmatched_truth_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters <= 0)])
@@ -68,10 +66,10 @@ def compute_match_statistics(true_energies, true_clusters, pred_clusters):
     unmatched_pred_energy = np.sum(true_energies[(true_clusters <= 0) & (pred_clusters > 0)])
     
     match_statistics = {
-        'matched_truth_energy': matched_truth_energy / true_total_energy,
-        'unmatched_truth_energy': unmatched_truth_energy / true_total_energy,
-        'matched_pred_energy': matched_pred_energy / pred_total_energy,
-        'unmatched_pred_energy': unmatched_pred_energy / pred_total_energy
+        'matched_truth_energy': matched_truth_energy / true_signal_energy,
+        'unmatched_truth_energy': unmatched_truth_energy / true_signal_energy,
+        'matched_pred_energy': matched_pred_energy / pred_signal_energy,
+        'unmatched_pred_energy': unmatched_pred_energy / pred_signal_energy
     }
     
     return match_statistics
@@ -101,7 +99,7 @@ def main():
     valid_events = 0
     sample = "FTFP_BERT_EMM_25-02-04"
     particleEnergy = "e50"
-    species = "Tau"
+    species = "Kaon"
 
     all_data, all_pass_noise_filter, all_out_gravnet = dp.load_data_bulk(sample, particleEnergy, species)
 
@@ -110,8 +108,14 @@ def main():
         pass_noise_filter = all_pass_noise_filter[i]
         out_gravnet = all_out_gravnet[i]
         
+        
+
         true_energies, true_clusters = process_data(data)
         pred_clusters = dp.process_gravnet(pass_noise_filter, out_gravnet, cutoff = False, tbeta = 0.9)
+        
+        print(np.unique(pred_clusters))
+
+        
         if not np.any(pred_clusters > 0):
             continue
         
