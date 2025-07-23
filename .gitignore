@@ -1,10 +1,12 @@
-testFile.txt
-Aggregated\ Plotting\ Scripts/photons/
-Aggregated\ Plotting\ Scripts/pions/
-Aggregated\ Plotting\ Scripts/kaons/
-Aggregated\ Plotting\ Scripts/taus/
-Aggregated\ Plotting\ Scripts/submit_merge.slurm
-Aggregated\ Plotting\ Scripts/output.pdf
-Aggregated\ Plotting\ Scripts/pickles/
-Aggregated\ Plotting\ Scripts/oddGallery/
-Aggregated\ Plotting\ Scripts/__pycache__*
+#output products
+AggregatedPlottingScripts/photons/
+AggregatedPlottingScripts/pions/
+AggregatedPlottingScripts/kaons/
+AggregatedPlottingScripts/taus/
+AggregatedPlottingScripts/output.pdf
+#processed inputs
+AggregatedPlottingScripts/pickles/
+#Misc
+AggregatedPlottingScripts/submit_merge.slurm
+AggregatedPlottingScripts/oddGallery/
+AggregatedPlottingScripts/__pycache__*

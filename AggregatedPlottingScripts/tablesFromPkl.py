@@ -40,17 +40,6 @@ def compute_statistics(true_energies, true_clusters, pred_clusters):
     return fractions
 
 def generate_table_1(fractions):
-    # data = {
-    #     'True / Predicted': ['True Noise', 'True Signal'],
-    #     'Predicted Noise': [fractions['correct_noise'], fractions['incorrect_signal_as_noise']],
-    #     'Predicted Signal': [fractions['incorrect_noise_as_signal'], fractions['correct_signal']]
-    # }
-    # df = pd.DataFrame(data)
-    # df.set_index('True / Predicted', inplace=True)
-    # print("Table 1:\n")
-    # print(tabulate(df, headers='keys', tablefmt='fancy_grid'))
-    # The above is better for terminal inspection
-    # The below is better for converting to the google sheet
     print(f"========table 1========")
     print(f"{fractions['correct_noise']} {fractions['incorrect_noise_as_signal']}")
     print(f"{fractions['incorrect_signal_as_noise']} {fractions['correct_signal']}")
@@ -60,46 +49,34 @@ def compute_match_statistics(true_energies, true_clusters, pred_clusters):
     true_signal_energy = np.sum(true_energies[true_clusters > 0])
     pred_signal_energy = np.sum(true_energies[pred_clusters > 0])
     
-    matched_truth_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters > 0)])
-    unmatched_truth_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters <= 0)])
-    matched_pred_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters > 0)])
-    unmatched_pred_energy = np.sum(true_energies[(true_clusters <= 0) & (pred_clusters > 0)])
+    matched_truth_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters > 0)]) / true_signal_energy
+    unmatched_truth_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters <= 0)]) / true_signal_energy
+    matched_pred_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters > 0)]) / pred_signal_energy
+    unmatched_pred_energy = np.sum(true_energies[(true_clusters <= 0) & (pred_clusters > 0)]) / pred_signal_energy
     
     match_statistics = {
-        'matched_truth_energy': matched_truth_energy / true_signal_energy,
-        'unmatched_truth_energy': unmatched_truth_energy / true_signal_energy,
-        'matched_pred_energy': matched_pred_energy / pred_signal_energy,
-        'unmatched_pred_energy': unmatched_pred_energy / pred_signal_energy
+        'matched_truth_energy': matched_truth_energy,
+        'unmatched_truth_energy': unmatched_truth_energy,
+        'matched_pred_energy': matched_pred_energy,
+        'unmatched_pred_energy': unmatched_pred_energy,
     }
     
     return match_statistics
 
 def generate_table_2(match_statistics):
-    # data = {
-    #     'Matched/Unmatched': ['Matched Truth', 'Unmatched Truth', 'Matched Predicted', 'Unmatched Predicted'],
-    #     'Energy Fraction': [
-    #         match_statistics['matched_truth_energy'], 
-    #         match_statistics['unmatched_truth_energy'],
-    #         match_statistics['matched_pred_energy'], 
-    #         match_statistics['unmatched_pred_energy']
-    #     ]
-    # }
-    # df = pd.DataFrame(data)
-    # df.set_index('Matched/Unmatched', inplace=True)
-    # print("Table 2:\n")
-    # print(tabulate(df, headers='keys', tablefmt='fancy_grid'))
     print(f"========table 2========")
     print(f"{match_statistics['matched_truth_energy']} {match_statistics['unmatched_truth_energy']}")
     print(f"{match_statistics['matched_pred_energy']} {match_statistics['unmatched_pred_energy']}")
     return
 
 def main():
-    all_fractions = []
-    all_match_statistics = []
-    valid_events = 0
     sample = "FTFP_BERT_EMM_25-02-04"
     particleEnergy = "e50"
     species = "Kaon"
+    
+    all_fractions = {}
+    all_match_statistics = []
+    valid_events = 0
 
     all_data, all_pass_noise_filter, all_out_gravnet = dp.load_data_bulk(sample, particleEnergy, species)
 
@@ -108,18 +85,9 @@ def main():
         pass_noise_filter = all_pass_noise_filter[i]
         out_gravnet = all_out_gravnet[i]
         
-        
-
         true_energies, true_clusters = process_data(data)
         pred_clusters = dp.process_gravnet(pass_noise_filter, out_gravnet, cutoff = False, tbeta = 0.9)
         
-        print(np.unique(pred_clusters))
-
-        
-        if not np.any(pred_clusters > 0):
-            continue
-        
-        valid_events += 1
         fractions = compute_statistics(true_energies, true_clusters, pred_clusters)
         all_fractions.append(fractions)
         

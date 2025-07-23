@@ -23,7 +23,7 @@ for specie in species:
         data, score_noise_filter, pass_noise_filter, out_gravnet = [], [], [], []
 
         for file in tqdm(files):
-            # temp_load_data = np.load("/users/6/vadna042/airobustness/AIRobustness/Aggregated Plotting Scripts/NANOAOD_singlePhoton_50-50GeV_1_000_pos_ZMODIFIED3.npz", allow_pickle=True)
+            # temp_load_data = np.load("/users/6/vadna042/airobustness/AIRobustness/AggregatedPlottingScripts/NANOAOD_singlePhoton_50-50GeV_1_000_pos_ZMODIFIED3.npz", allow_pickle=True)
             temp_load_data = dp.load_data(file) #4 returns, all tensors
             data.append(temp_load_data[0])
             score_noise_filter.append(temp_load_data[1])
