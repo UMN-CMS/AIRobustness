@@ -9,14 +9,14 @@ Converts N events into the data, score_noise_filter, pass_noise_filter, out_grav
 Helps to improve loading times in data_plotting.py  
 Make sure there is a directory called pickles, update file_pattern and sample, then run
 '''
-samples = [x.split("/")[-1] for x in glob.glob("/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/*25-02-04")]
+samples = [x.split("/")[-1] for x in glob.glob("/home/nstrobbe/mahon/hgcalmlSingularity/hgcal_minimal_eval_example/output/*25-02-04")]
 
 species = ["Tau","Kaon","Pion","Photon"]
 
 for specie in species:
     for sample in samples:
 
-        file_pattern = f"/home/nstrobbe/mahon336/hgcalmlSingularity/hgcal_minimal_eval_example/output/{sample}/NANOAOD_single{specie}*.pkl"
+        file_pattern = f"/home/nstrobbe/mahon/hgcalmlSingularity/hgcal_minimal_eval_example/output/{sample}/NANOAOD_single{specie}*.pkl"
         
         file_limit = 1000
         files = glob.glob(file_pattern)[:file_limit]

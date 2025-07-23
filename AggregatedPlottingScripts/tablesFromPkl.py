@@ -8,7 +8,6 @@ from tabulate import tabulate
 import data_processing as dp
 
 # Load set number of .pkl files
-# file_pattern = r'C:\Users\tsoli\OneDrive\Documents\School\1 - University of Minnesota\Year 17\Year 1 Research\picklefiles\tau\*.pkl'
 
 file_limit = 1000
 
@@ -51,6 +50,14 @@ def compute_match_statistics(true_energies, true_clusters, pred_clusters):
     
     matched_truth_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters > 0)]) / true_signal_energy
     unmatched_truth_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters <= 0)]) / true_signal_energy
+    
+    if pred_signal_energy == 0:
+        match_statistics = {
+            'matched_truth_energy': matched_truth_energy,
+            'unmatched_truth_energy': unmatched_truth_energy,
+        }
+        return match_statistics
+    
     matched_pred_energy = np.sum(true_energies[(true_clusters > 0) & (pred_clusters > 0)]) / pred_signal_energy
     unmatched_pred_energy = np.sum(true_energies[(true_clusters <= 0) & (pred_clusters > 0)]) / pred_signal_energy
     
@@ -60,7 +67,7 @@ def compute_match_statistics(true_energies, true_clusters, pred_clusters):
         'matched_pred_energy': matched_pred_energy,
         'unmatched_pred_energy': unmatched_pred_energy,
     }
-    
+
     return match_statistics
 
 def generate_table_2(match_statistics):
@@ -72,12 +79,24 @@ def generate_table_2(match_statistics):
 def main():
     sample = "FTFP_BERT_EMM_25-02-04"
     particleEnergy = "e50"
-    species = "Kaon"
+    species = "Photon"
     
-    all_fractions = {}
-    all_match_statistics = []
+    all_fractions = {
+        'correct_noise': [],
+        'incorrect_noise_as_signal': [],
+        'incorrect_signal_as_noise': [],
+        'correct_signal': [],
+        'pred_noise': [],
+        'pred_signal': [],    
+    }
+    all_match_statistics = {
+        'matched_truth_energy': [],
+        'unmatched_truth_energy': [],
+        'matched_pred_energy': [],
+        'unmatched_pred_energy': [],
+    }
+    
     valid_events = 0
-
     all_data, all_pass_noise_filter, all_out_gravnet = dp.load_data_bulk(sample, particleEnergy, species)
 
     for i in range(file_limit):
@@ -86,21 +105,25 @@ def main():
         out_gravnet = all_out_gravnet[i]
         
         true_energies, true_clusters = process_data(data)
-        pred_clusters = dp.process_gravnet(pass_noise_filter, out_gravnet, cutoff = False, tbeta = 0.9)
+        pred_clusters = dp.process_gravnet(pass_noise_filter, out_gravnet, cutoff = False, tbeta = 0.1)
         
         fractions = compute_statistics(true_energies, true_clusters, pred_clusters)
-        all_fractions.append(fractions)
+        for key in fractions:
+            all_fractions[key].append(fractions[key])
         
         match_statistics = compute_match_statistics(true_energies, true_clusters, pred_clusters)
-        all_match_statistics.append(match_statistics)
+        for key in match_statistics:
+            all_match_statistics[key].append(match_statistics[key])
     
-    average_fractions = {key: np.mean([d[key] for d in all_fractions]) for key in all_fractions[0]}
-    average_match_statistics = {key: np.mean([d[key] for d in all_match_statistics]) for key in all_match_statistics[0]}
-    
-    print(f"Total events: {valid_events}/{file_limit}")
+
+    average_fractions = {key: np.mean(all_fractions[key]) for key in all_fractions}
+    average_match_statistics = {key: np.mean(all_match_statistics[key]) for key in all_match_statistics}
+    print(f"Total events: {len(all_match_statistics['matched_pred_energy'])}/{file_limit}")
     
     table_1 = generate_table_1(average_fractions)
     table_2 = generate_table_2(average_match_statistics)
+
+    return
 
 if __name__ == '__main__':
     main()
