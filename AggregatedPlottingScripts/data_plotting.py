@@ -231,10 +231,13 @@ def main():
                         #   "MELNRemoved",
                         #   "MELremoved",
                         #   "QGSP_FTFP_BERT_EML_25-02-04",
-                        #   "zShift_1cm"
+                        #   "zShift_1cm",
+                        "removed1pct",
+                        "removed10pct",
+                        # "removed50pct",
                           ]]
     labels = ["true", "pred"]
-    betas = [0.10,0.20,0.80,0.90]
+    betas = []
     results = {}
     ratios = {}
 

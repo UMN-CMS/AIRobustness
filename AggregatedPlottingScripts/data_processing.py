@@ -7,6 +7,7 @@ from wpca import WPCA
 from sklearn.linear_model import RANSACRegressor 
 from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
+import os
 
 
 def aggregate_data(sample, particleEnergy, species, layer_positions, file_limit=1000, pred_cluster_cutoff=True, threshold_beta = 0.20):
@@ -188,13 +189,14 @@ def load_data(file_path):
     return data, score_noise_filter, pass_noise_filter, out_gravnet
 
 def load_data_bulk(sample, particleEnergy, species):
-    with open(f"pickles/{species}/{particleEnergy}/{sample}/data.pkl", 'rb') as f:
+    base_dir = os.path.dirname(__file__)
+    with open(f"{base_dir}/pickles/{species}/{particleEnergy}/{sample}/data.pkl", 'rb') as f:
         data = pickle.load(f)
     # with open(f"pickles/{sample}/{sample}_score_noise_filter.pkl", 'rb') as f:
     #     score_noise_filter = pickle.load(f)
-    with open(f"pickles/{species}/{particleEnergy}/{sample}/pass_noise_filter.pkl", 'rb') as f:
+    with open(f"{base_dir}/pickles/{species}/{particleEnergy}/{sample}/pass_noise_filter.pkl", 'rb') as f:
         pass_noise_filter = pickle.load(f)
-    with open(f"pickles/{species}/{particleEnergy}/{sample}/out_gravnet.pkl", 'rb') as f:
+    with open(f"{base_dir}/pickles/{species}/{particleEnergy}/{sample}/out_gravnet.pkl", 'rb') as f:
         out_gravent = pickle.load(f)
     
     return data, pass_noise_filter, out_gravent

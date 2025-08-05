@@ -1,9 +1,4 @@
-import pickle
 import numpy as np
-import torch
-import glob
-import pandas as pd
-from tabulate import tabulate
 
 import data_processing as dp
 
@@ -76,54 +71,67 @@ def generate_table_2(match_statistics):
     print(f"{match_statistics['matched_pred_energy']} {match_statistics['unmatched_pred_energy']}")
     return
 
-def main():
-    sample = "FTFP_BERT_EMM_25-02-04"
-    particleEnergy = "e50"
-    species = "Photon"
+# def main():
+def getTables(species,particleEnergy,sample,betaCut):
+    if type(betaCut) != list:
+        betaCut = [betaCut]
     
-    all_fractions = {
-        'correct_noise': [],
-        'incorrect_noise_as_signal': [],
-        'incorrect_signal_as_noise': [],
-        'correct_signal': [],
-        'pred_noise': [],
-        'pred_signal': [],    
-    }
-    all_match_statistics = {
-        'matched_truth_energy': [],
-        'unmatched_truth_energy': [],
-        'matched_pred_energy': [],
-        'unmatched_pred_energy': [],
-    }
-    
-    valid_events = 0
-    all_data, all_pass_noise_filter, all_out_gravnet = dp.load_data_bulk(sample, particleEnergy, species)
+    #Species, particleEnergy,sample will not be lists. betaCut might.
 
-    for i in range(file_limit):
-        data = all_data[i]
-        pass_noise_filter = all_pass_noise_filter[i]
-        out_gravnet = all_out_gravnet[i]
+    outputList = []
+    all_data, all_pass_noise_filter, all_out_gravnet = dp.load_data_bulk(sample, particleEnergy,species)
+    for beta in betaCut:
+        all_fractions = {
+            'correct_noise': [],
+            'incorrect_noise_as_signal': [],
+            'incorrect_signal_as_noise': [],
+            'correct_signal': [],
+            'pred_noise': [],
+            'pred_signal': [],    
+        }
+        all_match_statistics = {
+            'matched_truth_energy': [],
+            'unmatched_truth_energy': [],
+            'matched_pred_energy': [],
+            'unmatched_pred_energy': [],
+        }
         
-        true_energies, true_clusters = process_data(data)
-        pred_clusters = dp.process_gravnet(pass_noise_filter, out_gravnet, cutoff = False, tbeta = 0.1)
+        for i in range(file_limit):
+            data = all_data[i]
+            pass_noise_filter = all_pass_noise_filter[i]
+            out_gravnet = all_out_gravnet[i]
+            
+            true_energies, true_clusters = process_data(data)
+            pred_clusters = dp.process_gravnet(pass_noise_filter, out_gravnet, cutoff = False, tbeta = beta)
+            
+            fractions = compute_statistics(true_energies, true_clusters, pred_clusters)
+            for key in fractions:
+                all_fractions[key].append(fractions[key])
+            
+            match_statistics = compute_match_statistics(true_energies, true_clusters, pred_clusters)
+            for key in match_statistics:
+                all_match_statistics[key].append(match_statistics[key])
         
-        fractions = compute_statistics(true_energies, true_clusters, pred_clusters)
-        for key in fractions:
-            all_fractions[key].append(fractions[key])
+
+        average_fractions = {key: np.mean(all_fractions[key]) for key in all_fractions}
+        average_match_statistics = {key: np.mean(all_match_statistics[key]) for key in all_match_statistics}
+        print(f"Total events: {len(all_match_statistics['matched_pred_energy'])}/{file_limit}")
         
-        match_statistics = compute_match_statistics(true_energies, true_clusters, pred_clusters)
-        for key in match_statistics:
-            all_match_statistics[key].append(match_statistics[key])
-    
+        # table_1 = generate_table_1(average_fractions)
+        # table_2 = generate_table_2(average_match_statistics)
+        output = {"species":species,"particleEnergy":particleEnergy,"sample":sample,"betaCut":beta}
+        for key in average_fractions:
+            output[key] = average_fractions[key]
+        for key in average_match_statistics:
+            output[key] = average_match_statistics[key]
+        output["valid_events"] = len(all_match_statistics['matched_pred_energy'])
+        output["total_events"] = file_limit
+        outputList.append(output)
 
-    average_fractions = {key: np.mean(all_fractions[key]) for key in all_fractions}
-    average_match_statistics = {key: np.mean(all_match_statistics[key]) for key in all_match_statistics}
-    print(f"Total events: {len(all_match_statistics['matched_pred_energy'])}/{file_limit}")
-    
-    table_1 = generate_table_1(average_fractions)
-    table_2 = generate_table_2(average_match_statistics)
+    return outputList
 
-    return
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
+
+# print(getTables("Photon","e50","FTFP_BERT_EMM_25-02-04"))
