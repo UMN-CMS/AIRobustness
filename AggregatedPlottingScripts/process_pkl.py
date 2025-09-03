@@ -9,15 +9,17 @@ Converts N events into the data, score_noise_filter, pass_noise_filter, out_grav
 Helps to improve loading times in data_plotting.py  
 Make sure there is a directory called pickles, update file_pattern and sample, then run
 '''
-# samples = [x.split("/")[-1] for x in glob.glob("/home/nstrobbe/mahon/hgcalmlSingularity/hgcal_minimal_eval_example/output/*25-02-04")]
-samples = ["removed1pct","removed10pct","removed50pct"]
+# samples = [x.split("/")[-1] for x in glob.glob("/home/nstrobbe/mahon/hgcalmlSingularity/hgcal_minimal_eval_example/output/")]
+# samples = ["removed1pct","removed10pct","removed50pct"]
 
-species = ["Tau"]
+species = ["Tau", "Pion", "Kaon"]
+samples = ["nominal"]
+ptdEnergy = ["10","100"]
 
 for specie in species:
-    for sample in samples:
+    for ptdEn in ptdEnergy:
 
-        file_pattern = f"/home/nstrobbe/shared/AIRobust/modifiedeventspkl/25-07-10/single{specie}24-11-25_E50_{sample}/*.pkl"
+        file_pattern = f"/home/nstrobbe/mahon/hgcalmlSingularity/hgcal_minimal_eval_example/output/single{specie}24-11-25/step3_{specie}_E{ptdEn}_*.pkl"
         
         file_limit = 1000
         files = glob.glob(file_pattern)[:file_limit]
@@ -31,19 +33,19 @@ for specie in species:
             pass_noise_filter.append(temp_load_data[2])
             out_gravnet.append(temp_load_data[3])
 
-        del files, file, file_pattern, file_limit
+        del files, file_pattern, file_limit
 
-        if not os.path.isdir(f"pickles/{specie}/e50/{sample}"):
-            os.makedirs(f"pickles/{specie}/e50/{sample}")
+        if not os.path.isdir(f"pickles/{specie}/e{ptdEn}/{samples[0]}"):
+            os.makedirs(f"pickles/{specie}/e{ptdEn}/{samples[0]}")
 
-        print(f"copying to {specie}/e50/{sample}")
-        with open(f"pickles/{specie}/e50/{sample}/data.pkl", 'wb') as f:
+        print(f"copying to {specie}/e{ptdEn}/{samples[0]}")
+        with open(f"pickles/{specie}/e{ptdEn}/{samples[0]}/data.pkl", 'wb') as f:
             pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(f"pickles/{specie}/e50/{sample}/score_noise_filter.pkl", 'wb') as f:
+        with open(f"pickles/{specie}/e{ptdEn}/{samples[0]}/score_noise_filter.pkl", 'wb') as f:
             pickle.dump(score_noise_filter, f, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(f"pickles/{specie}/e50/{sample}/pass_noise_filter.pkl", 'wb') as f:
+        with open(f"pickles/{specie}/e{ptdEn}/{samples[0]}/pass_noise_filter.pkl", 'wb') as f:
             pickle.dump(pass_noise_filter, f, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(f"pickles/{specie}/e50/{sample}/out_gravnet.pkl", 'wb') as f:
+        with open(f"pickles/{specie}/e{ptdEn}/{samples[0]}/out_gravnet.pkl", 'wb') as f:
             pickle.dump(out_gravnet, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         del data, score_noise_filter, pass_noise_filter, out_gravnet, temp_load_data

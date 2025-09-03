@@ -81,8 +81,8 @@ def request_df(df, species, particleEnergy, sample, betaCut):
 
 df = make_dataframe()
 
-species = ["Tau","Photon","Pion","Kaon"]
-particleEnergies = ["e50"]
+species = ["Tau","Pion","Kaon"]
+particleEnergies = ["e10","e100"]
 
 samples = [
     "nominal",
