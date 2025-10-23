@@ -14,7 +14,7 @@ from cmspepr_hgcal_core.datasets import singlePhoton_npz_to_torch_data
 from cmspepr_hgcal_core.matching import match
 
 # Clustering parameters; Values used for 2021 results were t_beta=.2, t_d=.5
-THRESHOLD_BETA = .2
+THRESHOLD_BETA = .20
 THRESHOLD_DIST = .5
 
 # For colors, just use the existing XKCD colors in Matplotlib.
@@ -187,7 +187,12 @@ def pickle_model_outputs(model,fileName,tag):
     print('Evaluating...')
 
     with torch.no_grad():
-        score_noise_filter, pass_noise_filter, out_gravnet = model(data)
+        try:
+            score_noise_filter, pass_noise_filter, out_gravnet = model(data)
+        except:
+            score_noise_filter = torch.Tensor().new_zeros([len(data.y),2])
+            pass_noise_filter = torch.Tensor().new_zeros([len(data.y)], dtype=bool)
+            out_gravnet = torch.Tensor().new_zeros([1],dtype=bool)
 
     print('Done.')
 
