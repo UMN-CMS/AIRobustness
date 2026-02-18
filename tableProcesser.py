@@ -2,129 +2,109 @@ import numpy as np
 import pandas as pd
 import pickle
 import sys, os
+import itertools
 
-sys.path.append(os.getcwd()+"/AggregatedPlottingScripts")
-from tablesFromPkl import getTables
-
-def make_dataframe():
-    try:
-        with open(".tableCache.pkl", 'rb') as file:
-            df = pickle.load(file)
-            print("path2")
-    except FileNotFoundError:
-        columns =  [
-            "species",
-            "particleEnergy",
-            "sample",
-            "betaCut",
-            "correct_noise",
-            "incorrect_noise_as_signal",
-            "incorrect_signal_as_noise",
-            "correct_signal",
-            "pred_noise",
-            "pred_signal",
-            "matched_truth_energy",
-            "unmatched_truth_energy",
-            "matched_pred_energy",
-            "unmatched_pred_energy",
-            "valid_events",
-            "total_events",
-        ]
-        df = pd.DataFrame(columns=columns)
-
-    return df
+# sys.path.append(os.getcwd()+"/AggregatedPlottingScripts")
+# from tablesFromPkl import getTables
 
 
-def inspect_df(df, species, particleEnergy, sample, betaCut):
+class dataCache():
+    def __init__(self, func, dataParams: dict, path=None):
+        if path is None:
+            self.path = f"{func.__name__}.pkl"
+        else:
+            self.path = path
+        self.dataParams = dataParams
+        self.func = func
+        #FIXME will this make it more difficult to ensure it is always up to date when operating directly through main?
+        try:
+            with open(self.path, 'rb') as file:
+                self.df = pickle.load(file)
+                print("Loaded Cache from memory.")
+        except FileNotFoundError:
+            print("Cache not found. Generating from parameters...")
+            columns = list(dataParams.keys()) + [func.__name__] #FIXME only give the function name if there is no dictionary output
+            # print(columns)     
+            self.df = pd.DataFrame(columns=columns)
+            #FIXME call get_df. Making a blank one ensures get_df works the same.
+            # self.get_df("a")
+            self.quick_make()
+
+    def quick_make(self):
+        subdf = [] #each entry a dict with the parameters and results
+        keys = self.dataParams.keys()
+        cartesian = itertools.product(*[ self.dataParams[key] for key in keys ])
+        for values in cartesian:
+            subdf.append({key:value for (key,value) in zip(keys, values)} | {self.func.__name__:self.func(*values)})
+        fresh_df = pd.DataFrame(subdf)
+        with open(self.path, "wb") as file:
+            pickle.dump(fresh_df,file)
+
+
+    def make_df(self):
+        # find all missing elements
+        # run the function and create the complementary_df
+        # Merge self.df with complementary_df
+        # Save self.df to self.path
+        return
+
+    def get_df(self,a): #Returns the segment of df that we want. Assumes its already in there
+        print(a)
+        # if request not in df:
+            # make_df
+        # df = self.df[request] 
+
+        return #the segment of df that is requested. 
     
-    for beta in betaCut:
-        subdf = df[(df["species"]==species) & (df["particleEnergy"]==particleEnergy) & (df["sample"]==sample) & (df["betaCut"]==betaCut)] 
-    if len(subdf) == 0:
-        print(f"Generating {species} {particleEnergy} {sample} {betaCut}")
-        return []
-    else:
-        return list(subdf.index)
-
-
-def request_df(df, species, particleEnergy, sample, betaCut):
-    if type(species) != list:
-        species = [species] 
-    if type(particleEnergy) != list:
-        particleEnergy = [particleEnergy] 
-    if type(sample) != list:
-        sample = [sample] 
-    if type(betaCut) != list:
-        betaCut = [betaCut] 
+    def whatami(self):
+        print("WhatamI? ",self.df)
+        return
+        
+        
+# #Incorporate
+# def inspect_df(df, species, particleEnergy, sample, betaCut):
     
-    # index = inspect_df(df, species, particleEnergy, sample, betaCut)
+#     for beta in betaCut:
+#         subdf = df[(df["species"]==species) & (df["particleEnergy"]==particleEnergy) & (df["sample"]==sample) & (df["betaCut"]==betaCut)] 
+#     if len(subdf) == 0:
+#         print(f"Generating {species} {particleEnergy} {sample} {betaCut}")
+#         return []
+#     else:
+#         return list(subdf.index)
+
+###############################################
+
+def foo(sample,species,energy): # always returns an int
+    if species=="crow":
+        spec = 1
+    elif species=="cow":
+        spec = 2
+    return len(sample) * spec * energy 
+
+def main():
+    #short sweet tester to make sure that everything works on a generic example
+    #function foo(param1=,param2=,...)
+    #becomes dataCacher.get_datacache("filename",foo,{param1:,param2:})
+    params = {
+        "sample":["nominal"],
+        "species":["cow","crow"],
+        "energy":[10,30,50]
+    }
+    params2 = {
+        "sample":["baba","nominal"],
+        "species":["cow","crow"],
+        "energy":[10,20,50]
+    }
+    dataCacher = dataCache(foo,params,"cow.pkl")
+    dataCacher.whatami()
+    return
 
 
-    # if index == []:
-    #     tempdf = {"species":species,"particleEnergy":particleEnergy,"sample":sample,"betaCut":betaCut}
-    #     tempoutput = getTables(tempdf["species"],tempdf["particleEnergy"],tempdf["sample"],tempdf["betaCut"])
-    #     for key in tempoutput:
-    #         tempdf[key] = tempoutput[key]
-    #     df = pd.concat([df, pd.DataFrame([tempdf])]).reset_index(drop=True)
-    #     index = [len(df)]
+if __name__=="__main__":
+    main()
 
-    #     with open(".tableCache.pkl", 'wb') as file:
-    #         pickle.dump(df, file)
-    for samp in sample:
-        for specie in species:
-            for ptdEn in particleEnergy:
-                print(f"Generating {specie} {ptdEn} {samp} {betaCut}")
-                tempdf = getTables(specie,ptdEn,samp,betaCut)
-                df = pd.concat([df, pd.DataFrame(tempdf)]).reset_index(drop=True)
-
-    return df
-
-
-df = make_dataframe()
-
-species = ["Tau","Pion","Kaon"]
-particleEnergies = ["e10","e100"]
-
-samples = [
-    "nominal",
-    # "BirkC1_0p006_25-02-04",
-    # "EFTFP_1-25_25-02-04",
-    # "EFTFP_20-40_EmaxBERT_20_20pi_25-02-04",
-    # "EFTFP_3-15_25-02-04",
-    # "EFTFP_3-35_25-02-04",
-    # "EFTFP_5-25_25-02-04",
-    # "EmaxBERT_3_pi6_25-02-04",
-    # "EmaxBERT_9_18pi_25-02-04",
-    # "EminQGSP_20_25-02-04",
-    # "EminQGSP_6_25-02-04",
-    # "FTFP_BERT_25-02-04",
-    # "FTFP_BERT_EMM_25-02-04",
-    # "FTFP_BERT_EMY_25-02-04",
-    # "FTFP_BERT_EMZ_25-02-04",
-    # "MELNRemoved",
-    # "MELremoved",
-    # "QGSP_FTFP_BERT_EML_25-02-04",
-    # "zShift_1cm",
-    # "removed1pct",
-    # "removed10pct",
-    ]
-
-betaCuts = [0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4,0.45,0.5,0.55,0.6,0.65,0.7,0.75,0.8,0.85,0.9,0.95]
-
-
-df = request_df(df,species,particleEnergies,samples,betaCuts)
-
-with open(".tableCache.pkl", 'wb') as file:
-        pickle.dump(df, file)
-
-
-"""
-
-- Loads in the .tableCache if it exists, if not, make a generic version without any entries.
-    Dont want to rewrite if it is not changed
-    
+""" 
 - Request is made for a certain segment of the dataframe by available criteria.
-- 
-    
     How to solve the problem of initial state without having a huge comparison at the end? does it matter? It always matters but only in the end, never the beginning. 
         The beginning defines the spawning of ideas and forms. Critters walking out into harsh sunlight and dry rocks
         As time weathers them, adaptations evolve their state until a hardened warrior emerges.
@@ -140,11 +120,35 @@ with open(".tableCache.pkl", 'wb') as file:
 - If something is missing, it will try to acquire it for you before generating the output df. 
     Future version will save time by batching all beta variants together to avoid loading every time.
 
-Considerations::
-* Pass by value or reference for df to save on time. 
-    Does python allow for by reference actually? Maybe a different language is key? Nah.
-* 
-
-
 """
 
+
+#junk for pushing values quick
+def main2():
+    #Dataframe parameters are "species, particleEnergy, sample, betacut"
+    # species = ["Tau","Pion","Kaon"]
+    # particleEnergies = ["e10","e100"]
+    # samples = ["nominal"]
+    # df = request_df(species,particleEnergies,samples,betaCuts)
+
+    return
+
+# columns =  [
+# "species",
+# "particleEnergy",
+# "sample", #might need to expand this to physicsList and then sep by what variation is being applied
+# "betaCut",
+
+# "correct_noise",
+# "incorrect_noise_as_signal",
+# "incorrect_signal_as_noise",
+# "correct_signal",
+# "pred_noise",
+# "pred_signal",
+# "matched_truth_energy",
+# "unmatched_truth_energy",
+# "matched_pred_energy",
+# "unmatched_pred_energy",
+# "valid_events",
+# "total_events",
+# ]
