@@ -1,3 +1,13 @@
+'''
+Support function for formatting text and ranges for ratio plots and ratio of ratio plots in data_plotting.py
+plot_labels_select is called from data_plotting.py. 
+Each argument is used to identify a corresponding string for plot formatting.
+If no entry is located, supplies a default string. All strings are outputted in a dictionary.
+Plotting ranges use either the calculated standard deviation or a supplied multiple thereof or a hardcoded range from get_range().
+Note, rofR will not work unless the range and bin counts are the same for both ratios under comparison, which is not given from the event datasets. 
+Using get_range() will force this to occur. 
+'''
+
 def default_format():
     formatText = {
         "title":"Hist Ratio",

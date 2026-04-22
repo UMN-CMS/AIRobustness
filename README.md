@@ -43,11 +43,27 @@ pip install -e cmspepr_hgcal_core/
 
 Note that pytorch is preinstalled in the container.
 
-
-## Usage
-
 ```bash
 python plot3d.py
 ```
 
 This script will create a file called `myplots.html`, which can be opened in a browser.
+
+
+# Plotting
+## Environment
+All plotting utilities use the 'airobust' conda environment given in airobust_environment.yml.
+Create and activate the the environment with
+```bash
+conda create -n airobust --file airobust_environment.yml
+conda activate airobust
+```
+
+**Paper Plot:** Scripts used to create specific plots for the AIRobustness paper.
+- energy_resolution.py
+- rofR_paper.py
+
+The remainder scripts are for handling the network output and generic plotting utilities.
+
+Several scripts reference event files in ```AggregatedPlottingScripts/pickles/<species>/<energy>/<sample>/``` which is an event list put in column major order by the script process_pkl.py for a moderate decrease in loading time. To read from a pkl event list direcly, replace instances of load_bulk_data() with load_data().
+

@@ -6,7 +6,7 @@ import os, sys
 
 '''
 Converts N events into the data, score_noise_filter, pass_noise_filter, out_gravnet files each containing N entries.
-Helps to improve loading times in data_plotting.py  
+Helps to improve loading times in data_plotting.py but is not necessary. 
 Make sure there is a directory called pickles, update file_pattern and sample, then run
 '''
 

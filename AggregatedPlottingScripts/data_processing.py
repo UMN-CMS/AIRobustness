@@ -9,6 +9,13 @@ from sklearn.base import BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 import os
 
+'''
+Utility File.
+Calculates metrics for a given dataset and returns a dictionary with metric outputs of length N=events).
+load_data() loads data from a single event.
+load_bulk_data() loads in data, pass_noise_filter, out_gravnet for outputs from the file process_pkl.py.
+Anything relating to Z-layers must assciate to closest Z position from unique_Z.txt due to floating-point imprecision in event z-data.
+'''
 
 def aggregate_data(sample, particleEnergy, species, layer_positions, file_limit=1000, pred_cluster_cutoff=True, threshold_beta = 0.20):
     """Aggregate all necessary data from the files."""
@@ -53,7 +60,7 @@ def aggregate_data(sample, particleEnergy, species, layer_positions, file_limit=
         }
     }
 
-    #ZShift encorded in sample name
+    #ZShift encoded in sample name
     print(sample)
     if "zShift" in sample:
         print(f"Yeah, we're shifting now")
@@ -84,12 +91,7 @@ def aggregate_data(sample, particleEnergy, species, layer_positions, file_limit=
         z_pred = zpos[final_pred_hits > 0]
         energy_pred = true_energies[final_pred_hits > 0]
 
-        #apply masking if necessary
-        # x_pred = x_pred[dp.fullmask(x_pred)]
-        # y_pred = y_pred[dp.fullmask(y_pred)]
-        # z_pred = z_pred[dp.fullmask(z_pred)]
-        # energy_pred = energy_pred[dp.fullmask(energy_pred)]
-
+        
         # if len(z_pred) == 0:
         #     results["skips"].append(file_i)
         #     continue
@@ -303,12 +305,11 @@ def find_first_hit(z_vals,layer_positions):
     return np.argmin(np.abs(layer_positions - sorted(z_vals)[0]))
 
 def maxELayer(z, energy, layer_positions):
-    #so take z and map it to the assumed layer positions which are already the ints. 
-    #To convert we cannot use the equaltiy because I fear the occasional value shifting after the closest val is coppied,
-    #This may be irrational, but we should instead make the index comparison.
-    #So we sum energy indexed by the bool array created by indexing the index_identifier array by i in range(50)
-    #Well actually lets see if we make it one way and another and check that theyre the same
-    #start with the easy one. Afterall, if we make it save the relavant float we can make the comparison anyway, there shouldnt be any problem
+    '''
+    To perform operations on Z values, they must first be mapped to 
+    nearest layer_position due to floating point-imprecision invalidating use of the equality operator.
+    Mapping allows us to use the layer index instead.
+    '''
     z_closest_index = np.asarray([np.argmin(np.abs(layer_positions-x)) for x in z ])
     energy_per_layer = [ np.sum(np.asarray(energy)[z_closest_index==i]) for i in range(len(layer_positions)) ]
     return np.argmax(energy_per_layer)
@@ -614,10 +615,3 @@ def accumulate_histograms(hist_data, data, pass_noise_filter, out_gravnet):
             hist_data['low_eta'][labels[category]].append(ratio)
         else:
             hist_data['high_eta'][labels[category]].append(ratio)
-
-def fullmask(data):
-    '''
-    The masking functions are meant to be called as a final step on the data.
-    These will simulate different failure modes of the detector as represented in changes in data.
-    '''
-    return np.ones_like(data, dtype=bool)

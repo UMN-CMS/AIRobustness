@@ -7,6 +7,12 @@ from itertools import product, combinations, combinations_with_replacement
 import data_processing as dp
 import plot_labels
 
+'''
+Mass produces Ratio plots and Ratio of Ratio plots for valid combinations of metrics, samples, species.
+Plots collected into pdfs using mergePDF.sh. 
+File type for merged PDF determined by plot_ratio() and rofR() functions. 
+PNG will show resolution loss in pdf form. 
+'''
 
 def plot_energy_resolution(results, sample):
     hist_data = results["hist_data"]
@@ -39,10 +45,9 @@ def plot_energy_resolution(results, sample):
 
 def plot_ratio(data, metric, numerator, denominator, species, sig=None, pred_cluster_cutoff=True):
     '''
-    Generic plotting utility for making histogram ratio comparison plots.
-    hist1 and hist2 must be 1d arrays of data to be turned into histograms
-    formatText is a dict containing all graphs strings for formatting. 
-    If anything isnt present, it will default to a generic string.
+    Generic histogram ratio plotting utility.
+    hist1 and hist2 must be 1d arrays
+    formatText correlates variable names/values with plot format text. 
     '''    
     
     data1 = data[numerator[0]][f"{metric}_{numerator[1]}"]
@@ -257,7 +262,6 @@ def main():
             samples[1].append(beta_sample_name)
             results[beta_sample_name] = dp.aggregate_data(samples[0], particleEnergy, species, layer_positions, file_limit, pred_cluster_cutoff=False, threshold_beta=beta)
 
-    #FIXME The combinations this makes is quite opaque, there has to be a better way of handling this...
     # produce the set of graph combinations
     # 1. sampleVar vs base true/true
     # 2. sampleVar vs base pred/pred

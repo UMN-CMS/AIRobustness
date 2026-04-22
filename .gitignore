@@ -4,9 +4,13 @@ AggregatedPlottingScripts/pions/
 AggregatedPlottingScripts/kaons/
 AggregatedPlottingScripts/taus/
 AggregatedPlottingScripts/output.pdf
+AggregatedPlottingScripts/eres_processed/
+.tableCache.pkl
+.tableCacheBackup.pkl
 #processed inputs
 AggregatedPlottingScripts/pickles/
 #Misc
 AggregatedPlottingScripts/submit_merge.slurm
 AggregatedPlottingScripts/oddGallery/
 AggregatedPlottingScripts/__pycache__*
+

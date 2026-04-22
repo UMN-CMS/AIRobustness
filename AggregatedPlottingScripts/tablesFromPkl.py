@@ -6,6 +6,13 @@ import data_processing as dp
 
 file_limit = 1000
 
+'''
+Computes Table 1 (Signal or noise correctly or incorrectly identified)
+Computes Table 2 (match/unmatched truth/prediction energy)
+Outputs table values in dictionary
+Not all datasamples have valid predictions - depends on the network. If this occurs, table 2 is reduced.
+'''
+
 # Parsing true input.
 def process_data(data):
     true_energies = data.x[:, 0].numpy()

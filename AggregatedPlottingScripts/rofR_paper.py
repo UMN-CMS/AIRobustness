@@ -8,7 +8,9 @@ from itertools import product, combinations, combinations_with_replacement
 import data_processing as dp
 import plot_labels
 
-
+'''
+Produces the ratio of ratios plot used in the paper.
+'''
 def plot_ratio(data, metric, numerator, denominator, whichRatio):
     
     data1 = data[numerator[0]][f"{metric}_{numerator[1]}"]
